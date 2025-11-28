@@ -1,0 +1,89 @@
+name: expense_tracker
+description: "A comprehensive expense tracking Flutter application."
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State Management
+  provider: ^6.1.5+1
+
+  # Database & Storage
+  sqflite: ^2.4.2
+  path: ^1.9.1
+  shared_preferences: ^2.5.3
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # UI Components
+  flutter_svg: ^2.2.3
+  shimmer: ^3.0.0
+  lottie:
+
+  # Charts
+  fl_chart: ^1.1.1
+
+  # Date & Time
+  intl: ^0.20.2
+
+  # Notifications
+  flutter_local_notifications: ^19.5.0
+  timezone: ^0.10.1
+
+  # Export & Sharing
+  pdf: ^3.11.3
+  printing: ^5.14.2
+  excel: ^4.0.6
+  share_plus: ^12.0.1
+  path_provider: ^2.1.5
+
+  # Permissions
+  permission_handler: ^12.0.1
+
+  # Currency
+  currency_picker: ^2.0.21
+
+  # Security
+  local_auth: ^3.0.0
+
+  # Image
+  image_picker: ^1.2.1
+
+  # Utilities
+  uuid: ^4.5.2
+  file_picker: ^10.3.7
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  hive_generator: ^2.0.1
+  build_runner:
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/animations/
+
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-Bold.ttf

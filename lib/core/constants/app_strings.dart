@@ -1,0 +1,231 @@
+class AppStrings {
+  static const String appName = 'Expense Tracker';
+  static const String appTagline = 'Manage your finances wisely';
+
+  static const String ok = 'OK';
+  static const String cancel = 'Cancel';
+  static const String save = 'Save';
+  static const String delete = 'Delete';
+  static const String edit = 'Edit';
+  static const String add = 'Add';
+  static const String update = 'Update';
+  static const String search = 'Search';
+  static const String filter = 'Filter';
+  static const String sort = 'Sort';
+  static const String clear = 'Clear';
+  static const String clearAll = 'Clear All';
+  static const String apply = 'Apply';
+  static const String done = 'Done';
+  static const String next = 'Next';
+  static const String back = 'Back';
+  static const String skip = 'Skip';
+  static const String getStarted = 'Get Started';
+  static const String continueText = 'Continue';
+  static const String retry = 'Retry';
+  static const String yes = 'Yes';
+  static const String no = 'No';
+  static const String close = 'Close';
+  static const String loading = 'Loading...';
+  static const String pleaseWait = 'Please wait...';
+  static const String success = 'Success';
+  static const String error = 'Error';
+  static const String warning = 'Warning';
+  static const String info = 'Info';
+
+  static const String welcome = 'Welcome';
+  static const String welcomeBack = 'Welcome Back';
+  static const String createAccount = 'Create Account';
+  static const String login = 'Login';
+  static const String logout = 'Logout';
+  static const String email = 'Email';
+  static const String password = 'Password';
+  static const String confirmPassword = 'Confirm Password';
+  static const String forgotPassword = 'Forgot Password?';
+  static const String resetPassword = 'Reset Password';
+  static const String enterPin = 'Enter PIN';
+  static const String createPin = 'Create PIN';
+  static const String confirmPin = 'Confirm PIN';
+  static const String biometricPrompt = 'Authenticate to continue';
+
+  static const String home = 'Home';
+  static const String transactions = 'Transactions';
+  static const String statistics = 'Statistics';
+  static const String budgets = 'Budgets';
+  static const String accounts = 'Accounts';
+  static const String categories = 'Categories';
+  static const String settings = 'Settings';
+  static const String profile = 'Profile';
+
+  static const String income = 'Income';
+  static const String expense = 'Expense';
+  static const String transfer = 'Transfer';
+  static const String addTransaction = 'Add Transaction';
+  static const String editTransaction = 'Edit Transaction';
+  static const String deleteTransaction = 'Delete Transaction';
+  static const String transactionDetails = 'Transaction Details';
+  static const String amount = 'Amount';
+  static const String title = 'Title';
+  static const String category = 'Category';
+  static const String account = 'Account';
+  static const String fromAccount = 'From Account';
+  static const String toAccount = 'To Account';
+  static const String date = 'Date';
+  static const String time = 'Time';
+  static const String note = 'Note';
+  static const String receipt = 'Receipt';
+  static const String addReceipt = 'Add Receipt';
+  static const String recurring = 'Recurring';
+  static const String noTransactions = 'No transactions yet';
+  static const String noTransactionsDesc =
+      'Tap + to add your first transaction';
+  static const String recentTransactions = 'Recent Transactions';
+  static const String allTransactions = 'All Transactions';
+  static const String today = 'Today';
+  static const String yesterday = 'Yesterday';
+  static const String thisWeek = 'This Week';
+  static const String thisMonth = 'This Month';
+  static const String thisYear = 'This Year';
+  static const String custom = 'Custom';
+
+  static const String addCategory = 'Add Category';
+  static const String editCategory = 'Edit Category';
+  static const String deleteCategory = 'Delete Category';
+  static const String categoryName = 'Category Name';
+  static const String selectCategory = 'Select Category';
+  static const String selectIcon = 'Select Icon';
+  static const String selectColor = 'Select Color';
+  static const String incomeCategories = 'Income Categories';
+  static const String expenseCategories = 'Expense Categories';
+  static const String noCategories = 'No categories yet';
+  static const String defaultCategories = 'Default Categories';
+
+  static const String addAccount = 'Add Account';
+  static const String editAccount = 'Edit Account';
+  static const String deleteAccount = 'Delete Account';
+  static const String accountName = 'Account Name';
+  static const String accountType = 'Account Type';
+  static const String selectAccount = 'Select Account';
+  static const String initialBalance = 'Initial Balance';
+  static const String currentBalance = 'Current Balance';
+  static const String totalBalance = 'Total Balance';
+  static const String includeInTotal = 'Include in Total';
+  static const String noAccounts = 'No accounts yet';
+  static const String cash = 'Cash';
+  static const String bank = 'Bank Account';
+  static const String creditCard = 'Credit Card';
+  static const String savings = 'Savings';
+  static const String investment = 'Investment';
+  static const String other = 'Other';
+
+  static const String addBudget = 'Add Budget';
+  static const String editBudget = 'Edit Budget';
+  static const String deleteBudget = 'Delete Budget';
+  static const String budgetName = 'Budget Name';
+  static const String budgetAmount = 'Budget Amount';
+  static const String budgetPeriod = 'Budget Period';
+  static const String spent = 'Spent';
+  static const String remaining = 'Remaining';
+  static const String exceeded = 'Exceeded';
+  static const String noBudgets = 'No budgets yet';
+  static const String noBudgetsDesc = 'Create a budget to track your spending';
+  static const String daily = 'Daily';
+  static const String weekly = 'Weekly';
+  static const String monthly = 'Monthly';
+  static const String yearly = 'Yearly';
+  static const String budgetAlert = 'Budget Alert';
+  static const String budgetExceeded = 'Budget Exceeded!';
+
+  static const String overview = 'Overview';
+  static const String byCategory = 'By Category';
+  static const String trend = 'Trend';
+  static const String spendingTrend = 'Spending Trend';
+  static const String incomeTrend = 'Income Trend';
+  static const String netBalance = 'Net Balance';
+  static const String averageSpending = 'Average Spending';
+  static const String topCategories = 'Top Categories';
+  static const String noDataAvailable = 'No data available';
+
+  static const String general = 'General';
+  static const String theme = 'Theme';
+  static const String darkMode = 'Dark Mode';
+  static const String lightMode = 'Light Mode';
+  static const String systemDefault = 'System Default';
+  static const String currency = 'Currency';
+  static const String language = 'Language';
+  static const String notifications = 'Notifications';
+  static const String pushNotifications = 'Push Notifications';
+  static const String budgetAlerts = 'Budget Alerts';
+  static const String dailyReminder = 'Daily Reminder';
+  static const String reminderTime = 'Reminder Time';
+  static const String security = 'Security';
+  static const String biometricLock = 'Biometric Lock';
+  static const String changePin = 'Change PIN';
+  static const String data = 'Data';
+  static const String backup = 'Backup';
+  static const String restore = 'Restore';
+  static const String backupRestore = 'Backup & Restore';
+  static const String exportData = 'Export Data';
+  static const String exportPdf = 'Export as PDF';
+  static const String exportExcel = 'Export as Excel';
+  static const String exportCsv = 'Export as CSV';
+  static const String deleteAllData = 'Delete All Data';
+  static const String about = 'About';
+  static const String rateApp = 'Rate App';
+  static const String shareApp = 'Share App';
+  static const String privacyPolicy = 'Privacy Policy';
+  static const String termsOfService = 'Terms of Service';
+  static const String appVersion = 'App Version';
+  static const String dangerZone = 'Danger Zone';
+
+  static const String transactionAdded = 'Transaction added successfully';
+  static const String transactionUpdated = 'Transaction updated successfully';
+  static const String transactionDeleted = 'Transaction deleted successfully';
+  static const String categoryAdded = 'Category added successfully';
+  static const String categoryUpdated = 'Category updated successfully';
+  static const String categoryDeleted = 'Category deleted successfully';
+  static const String accountAdded = 'Account added successfully';
+  static const String accountUpdated = 'Account updated successfully';
+  static const String accountDeleted = 'Account deleted successfully';
+  static const String budgetAdded = 'Budget created successfully';
+  static const String budgetUpdated = 'Budget updated successfully';
+  static const String budgetDeleted = 'Budget deleted successfully';
+  static const String dataExported = 'Data exported successfully';
+  static const String dataBackedUp = 'Data backed up successfully';
+  static const String dataRestored = 'Data restored successfully';
+  static const String allDataDeleted = 'All data deleted';
+  static const String settingsSaved = 'Settings saved';
+
+  static const String errorGeneric = 'Something went wrong. Please try again.';
+  static const String errorNetwork = 'No internet connection';
+  static const String errorTimeout = 'Request timed out';
+  static const String errorServer = 'Server error. Please try again later.';
+  static const String errorInvalidInput = 'Please check your input';
+  static const String errorRequired = 'This field is required';
+  static const String errorInvalidEmail = 'Please enter a valid email';
+  static const String errorInvalidAmount = 'Please enter a valid amount';
+  static const String errorSelectCategory = 'Please select a category';
+  static const String errorSelectAccount = 'Please select an account';
+  static const String errorInsufficientBalance = 'Insufficient balance';
+
+  static const String confirmDelete = 'Are you sure you want to delete this?';
+  static const String confirmDeleteAll =
+      'Are you sure you want to delete all data? This action cannot be undone.';
+  static const String confirmLogout = 'Are you sure you want to logout?';
+
+  static const String onboardingTitle1 = 'Track Your Expenses';
+  static const String onboardingDesc1 =
+      'Keep track of all your daily expenses and income with ease. Categorize transactions for better insights.';
+  static const String onboardingTitle2 = 'Set Budgets';
+  static const String onboardingDesc2 =
+      'Create budgets for different categories and get notified when you\'re close to exceeding them.';
+  static const String onboardingTitle3 = 'Analyze Your Spending';
+  static const String onboardingDesc3 =
+      'View detailed statistics and charts to understand where your money goes and make better financial decisions.';
+  static const String onboardingTitle4 = 'Secure & Private';
+  static const String onboardingDesc4 =
+      'Your financial data stays on your device. Protect it with biometric authentication for extra security.';
+
+  static const String goodMorning = 'Good Morning';
+  static const String goodAfternoon = 'Good Afternoon';
+  static const String goodEvening = 'Good Evening';
+}
