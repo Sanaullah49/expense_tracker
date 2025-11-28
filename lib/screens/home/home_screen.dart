@@ -450,11 +450,14 @@ class _HomeTabState extends State<_HomeTab> with AutomaticKeepAliveClientMixin {
                             size: 20,
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            healthStatus.message,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: _getBudgetHealthColor(healthStatus),
+                          Flexible(
+                            child: Text(
+                              healthStatus.message,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: _getBudgetHealthColor(healthStatus),
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -551,8 +554,9 @@ class _HomeTabState extends State<_HomeTab> with AutomaticKeepAliveClientMixin {
           );
         }
 
-        return SliverList(
-          delegate: SliverChildBuilderDelegate((context, index) {
+        return SliverList.builder(
+          itemCount: transactions.length + 1,
+          itemBuilder: (context, index) {
             if (index == 0) {
               return Padding(
                 padding: const EdgeInsets.all(AppSizes.md),
@@ -578,7 +582,13 @@ class _HomeTabState extends State<_HomeTab> with AutomaticKeepAliveClientMixin {
               );
             }
 
-            final transaction = transactions[index - 1];
+            final transactionIndex = index - 1;
+            if (transactionIndex >= transactions.length) {
+              return const SizedBox.shrink();
+            }
+
+            final transaction = transactions[transactionIndex];
+
             return Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSizes.md,
@@ -587,19 +597,21 @@ class _HomeTabState extends State<_HomeTab> with AutomaticKeepAliveClientMixin {
               child: TransactionItem(
                 transaction: transaction,
                 onTap: () async {
-                  await Navigator.pushNamed(
+                  final result = await Navigator.pushNamed(
                     context,
                     AppRoutes.transactionDetails,
                     arguments: {'transactionId': transaction.id},
                   );
 
                   if (mounted) {
-                    _onRefresh();
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _onRefresh();
+                    });
                   }
                 },
               ),
             );
-          }, childCount: transactions.length + 1),
+          },
         );
       },
     );

@@ -54,7 +54,9 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
             if (transaction == null) {
               return Scaffold(
                 appBar: AppBar(title: const Text('Transaction')),
-                body: const Center(child: Text('Transaction not found')),
+                body: isDeleting
+                    ? const Center(child: CircularProgressIndicator())
+                    : const Center(child: Text('Transaction not found')),
               );
             }
 
@@ -548,29 +550,27 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     setState(() => isDeleting = true);
 
     try {
+      final transactionProvider = context.read<TransactionProvider>();
+      final accountProvider = context.read<AccountProvider>();
+      final budgetProvider = context.read<BudgetProvider>();
+
+      await _revertAccountBalance(accountProvider, transaction);
+
+      await transactionProvider.deleteTransaction(transaction.id);
+
+      if (transaction.type == TransactionType.expense) {
+        await budgetProvider.recalculateCategoryBudgets(transaction.categoryId);
+      }
+
       if (mounted) {
-        final transactionProvider = context.read<TransactionProvider>();
-        final accountProvider = context.read<AccountProvider>();
-        final budgetProvider = context.read<BudgetProvider>();
-        await _revertAccountBalance(accountProvider, transaction);
+        Navigator.pop(context, true);
 
-        await transactionProvider.deleteTransaction(transaction.id);
-
-        if (transaction.type == TransactionType.expense) {
-          await budgetProvider.recalculateCategoryBudgets(
-            transaction.categoryId,
-          );
-        }
-
-        if (mounted) {
-          Navigator.pop(context, true);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Transaction deleted'),
-              backgroundColor: AppColors.success,
-            ),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Transaction deleted'),
+            backgroundColor: AppColors.success,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
