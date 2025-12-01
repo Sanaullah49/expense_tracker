@@ -30,7 +30,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
-  late AnimationController _balanceAnimationController;
 
   final List<Widget> _screens = [
     const _HomeTab(),
@@ -43,26 +42,9 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
-    // _fabAnimationController = AnimationController(
-    //   duration: const Duration(milliseconds: 500),
-    //   vsync: this,
-    // )..forward();
-
-    _balanceAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    )..forward();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshData();
     });
-  }
-
-  @override
-  void dispose() {
-    // _fabAnimationController.dispose();
-    _balanceAnimationController.dispose();
-    super.dispose();
   }
 
   Future<void> _refreshData() async {
@@ -82,7 +64,6 @@ class _HomeScreenState extends State<HomeScreen>
       ),
       floatingActionButton: Builder(
         builder: (context) {
-          // This will rebuild when theme changes without animation issues
           return FloatingActionButton(
             onPressed: () {
               HapticFeedback.lightImpact();
@@ -232,6 +213,7 @@ class _HomeTabState extends State<_HomeTab> with AutomaticKeepAliveClientMixin {
     super.build(context);
 
     return Scaffold(
+      appBar: _buildAppBar(context),
       body: Stack(
         children: [
           RefreshIndicator(
@@ -242,8 +224,6 @@ class _HomeTabState extends State<_HomeTab> with AutomaticKeepAliveClientMixin {
               controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
-                _buildAppBar(),
-
                 _buildGreeting(),
 
                 SliverToBoxAdapter(
@@ -290,30 +270,30 @@ class _HomeTabState extends State<_HomeTab> with AutomaticKeepAliveClientMixin {
     );
   }
 
-  Widget _buildAppBar() {
-    return SliverAppBar(
-      floating: true,
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       elevation: 0,
-      backgroundColor: Colors.transparent,
+      centerTitle: false,
       title: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               gradient: AppColors.primaryGradient,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(
               Icons.account_balance_wallet,
               color: Colors.white,
-              size: 24,
+              size: 20,
             ),
           ),
           const SizedBox(width: 12),
           const Text(
             AppStrings.appName,
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
           ),
         ],
       ),
@@ -365,11 +345,29 @@ class _HomeTabState extends State<_HomeTab> with AutomaticKeepAliveClientMixin {
           ),
           onPressed: () => _showNotificationsSheet(context),
         ),
-        IconButton(
-          icon: const Icon(Icons.person_outline),
-          onPressed: () {
-            Navigator.pushNamed(context, AppRoutes.profile);
-          },
+        Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: GestureDetector(
+            onTap: () {
+              Navigator.pushNamed(context, AppRoutes.profile);
+            },
+            child: Consumer<UserProvider>(
+              builder: (context, user, _) {
+                return CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                  child: Text(
+                    user.initials,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
         ),
       ],
     );
@@ -380,7 +378,12 @@ class _HomeTabState extends State<_HomeTab> with AutomaticKeepAliveClientMixin {
       builder: (context, userProvider, _) {
         return SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSizes.md),
+            padding: const EdgeInsets.fromLTRB(
+              AppSizes.md,
+              AppSizes.sm,
+              AppSizes.md,
+              0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

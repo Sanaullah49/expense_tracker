@@ -896,12 +896,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
+      builder: (_) => SizedBox(
+        height: MediaQuery.of(context).size.height * 0.65,
         child: CategoryPickerDialog(
           isIncome: _selectedType == TransactionType.income,
           selectedCategory: _selectedCategory,

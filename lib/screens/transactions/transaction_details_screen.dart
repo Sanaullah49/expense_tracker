@@ -3,6 +3,7 @@ import '../../core/services/screenshot_service.dart';
 import '../../data/models/category_model.dart';
 import '../../widgets/cards/transaction_receipt_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -91,14 +92,29 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
               typeLabel = 'Expense';
               typeIcon = Icons.arrow_upward;
             }
-            final isDarkBg = typeColor.computeLuminance() < 0.5;
-            final fgColor = isDarkBg ? Colors.white : Colors.black;
+
+            const fgColor = Colors.white;
+
+            final popupIconColor = Theme.of(context).colorScheme.onSurface;
+
             return Scaffold(
               backgroundColor: typeColor,
               appBar: AppBar(
                 backgroundColor: Colors.transparent,
                 elevation: 0,
-                foregroundColor: fgColor,
+                centerTitle: true,
+
+                iconTheme: const IconThemeData(color: fgColor),
+
+                titleTextStyle: const TextStyle(
+                  color: fgColor,
+                  fontFamily: 'Poppins',
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+
+                systemOverlayStyle: SystemUiOverlayStyle.light,
+
                 title: const Text('Transaction Details'),
                 actions: [
                   IconButton(
@@ -111,7 +127,7 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                     ),
                   ),
                   PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert),
+                    icon: const Icon(Icons.more_vert, color: fgColor),
                     onSelected: (value) {
                       switch (value) {
                         case 'edit':
@@ -126,23 +142,23 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                       }
                     },
                     itemBuilder: (_) => [
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'edit',
                         child: Row(
                           children: [
-                            Icon(Icons.edit_outlined),
-                            SizedBox(width: 12),
-                            Text('Edit'),
+                            Icon(Icons.edit_outlined, color: popupIconColor),
+                            const SizedBox(width: 12),
+                            const Text('Edit'),
                           ],
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'duplicate',
                         child: Row(
                           children: [
-                            Icon(Icons.copy_outlined),
-                            SizedBox(width: 12),
-                            Text('Duplicate'),
+                            Icon(Icons.copy_outlined, color: popupIconColor),
+                            const SizedBox(width: 12),
+                            const Text('Duplicate'),
                           ],
                         ),
                       ),
@@ -550,16 +566,20 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     setState(() => isDeleting = true);
 
     try {
-      final transactionProvider = context.read<TransactionProvider>();
-      final accountProvider = context.read<AccountProvider>();
-      final budgetProvider = context.read<BudgetProvider>();
+      if (mounted) {
+        final transactionProvider = context.read<TransactionProvider>();
+        final accountProvider = context.read<AccountProvider>();
+        final budgetProvider = context.read<BudgetProvider>();
 
-      await _revertAccountBalance(accountProvider, transaction);
+        await _revertAccountBalance(accountProvider, transaction);
 
-      await transactionProvider.deleteTransaction(transaction.id);
+        await transactionProvider.deleteTransaction(transaction.id);
 
-      if (transaction.type == TransactionType.expense) {
-        await budgetProvider.recalculateCategoryBudgets(transaction.categoryId);
+        if (transaction.type == TransactionType.expense) {
+          await budgetProvider.recalculateCategoryBudgets(
+            transaction.categoryId,
+          );
+        }
       }
 
       if (mounted) {

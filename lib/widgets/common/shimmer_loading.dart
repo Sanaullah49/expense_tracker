@@ -99,6 +99,7 @@ class ShimmerTransactionList extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.builder(
       padding: const EdgeInsets.all(AppSizes.md),
+      shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: itemCount,
       itemBuilder: (_, _) => const ShimmerTransactionItem(),
