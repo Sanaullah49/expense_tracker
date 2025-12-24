@@ -75,7 +75,7 @@ A comprehensive, feature-rich expense tracking application built with Flutter. M
 
 ```bash
 # Clone the repository
-git clone https://github.com/sanaullah49/expense_tracker.git
+git clone https://github.com/sanaullah/expense_tracker.git
 
 # Navigate to project
 cd expense_tracker
