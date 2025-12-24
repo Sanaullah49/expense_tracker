@@ -1,16 +1,30 @@
-# expense_tracker
+# Expense Tracker
 
-A new Flutter project.
+A comprehensive expense tracking app built with Flutter.
+
+## Screenshots
+
+
+## Features
+- 📊 Visual charts and spending analytics
+- 💰 Multi-currency support
+- 🔐 Biometric authentication (fingerprint/face)
+- 📄 Export reports to PDF and Excel
+- 🔔 Bill reminder notifications
+- 📸 Attach receipt images
+- 💾 Offline-first with local storage
+
+## Tech Stack
+- **State Management:** Provider
+- **Database:** SQLite + Hive
+- **Charts:** fl_chart
+- **Security:** local_auth
+- **Export:** pdf, excel, printing
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```bash
+git clone https://github.com/sanaullah49/expense_tracker.git
+cd expense_tracker
+flutter pub get
+flutter run
