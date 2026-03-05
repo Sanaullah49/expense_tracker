@@ -185,9 +185,26 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                       _updateDates();
                     });
                   },
-                  selectedColor: AppColors.primary.withValues(alpha: 0.2),
+                  showCheckmark: true,
+                  checkmarkColor: AppColors.primary,
+                  selectedColor: AppColors.primary.withValues(alpha: 0.14),
+                  backgroundColor: Colors.white,
+                  side: BorderSide(
+                    color: isSelected
+                        ? AppColors.primary
+                        : Colors.grey.shade300,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSizes.sm,
+                    vertical: 10,
+                  ),
                   labelStyle: TextStyle(
-                    color: isSelected ? AppColors.primary : null,
+                    color: isSelected
+                        ? AppColors.primary
+                        : Colors.grey.shade700,
                     fontWeight: isSelected ? FontWeight.w600 : null,
                   ),
                 );

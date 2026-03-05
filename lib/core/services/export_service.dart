@@ -344,9 +344,9 @@ class ExportService {
 
     for (var t in transactions) {
       final category = categories[t.categoryId];
-      final title = t.title.replaceAll('"', '""');
-      final note = (t.note ?? '').replaceAll('"', '""');
-      final categoryName = (category?.name ?? 'Unknown').replaceAll('"', '""');
+      final title = _sanitizeCsvCell(t.title);
+      final note = _sanitizeCsvCell(t.note ?? '');
+      final categoryName = _sanitizeCsvCell(category?.name ?? 'Unknown');
 
       buffer.writeln(
         '${DateFormat('yyyy-MM-dd').format(t.date)},'
@@ -365,5 +365,21 @@ class ExportService {
     await SharePlus.instance.share(
       ShareParams(files: [XFile(file.path)], text: 'Expense Report'),
     );
+  }
+
+  static String _sanitizeCsvCell(String value) {
+    final escaped = value.replaceAll('"', '""');
+    if (escaped.isEmpty) return escaped;
+
+    final trimmed = escaped.trimLeft();
+    if (trimmed.isNotEmpty &&
+        (trimmed.startsWith('=') ||
+            trimmed.startsWith('+') ||
+            trimmed.startsWith('-') ||
+            trimmed.startsWith('@'))) {
+      return "'$escaped";
+    }
+
+    return escaped;
   }
 }

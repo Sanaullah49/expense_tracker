@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
@@ -17,18 +19,24 @@ class LockScreen extends StatefulWidget {
 
 class _LockScreenState extends State<LockScreen> {
   final _localAuth = LocalAuthentication();
+  Timer? _lockoutTimer;
 
   String _enteredPin = '';
   bool _isAuthenticating = false;
   bool _showError = false;
-  int _attempts = 0;
-  static const int _maxAttempts = 5;
   bool _biometricAvailable = false;
 
   @override
   void initState() {
     super.initState();
+    _initializeLockState();
     _checkBiometricAvailability();
+  }
+
+  Future<void> _initializeLockState() async {
+    final settings = context.read<SettingsProvider>();
+    await settings.refreshPinLockout();
+    _startLockoutTimerIfNeeded();
   }
 
   Future<void> _checkBiometricAvailability() async {
@@ -36,6 +44,7 @@ class _LockScreenState extends State<LockScreen> {
       final canCheck = await _localAuth.canCheckBiometrics;
       final isDeviceSupported = await _localAuth.isDeviceSupported();
 
+      if (!mounted) return;
       setState(() {
         _biometricAvailable = canCheck && isDeviceSupported;
       });
@@ -44,6 +53,16 @@ class _LockScreenState extends State<LockScreen> {
 
       if (mounted) {
         final settings = context.read<SettingsProvider>();
+        if (settings.biometricEnabled &&
+            !_biometricAvailable &&
+            !settings.hasPin) {
+          await settings.setBiometricEnabled(false);
+          if (mounted) {
+            _onAuthSuccess();
+          }
+          return;
+        }
+
         if (settings.biometricEnabled && _biometricAvailable) {
           await Future.delayed(const Duration(milliseconds: 500));
           if (mounted) {
@@ -53,9 +72,11 @@ class _LockScreenState extends State<LockScreen> {
       }
     } catch (e) {
       debugPrint('Error checking biometric availability: $e');
-      setState(() {
-        _biometricAvailable = false;
-      });
+      if (mounted) {
+        setState(() {
+          _biometricAvailable = false;
+        });
+      }
     }
   }
 
@@ -101,6 +122,9 @@ class _LockScreenState extends State<LockScreen> {
   }
 
   void _onPinButtonPressed(String value) {
+    final settings = context.read<SettingsProvider>();
+    if (settings.isPinLockedOut) return;
+
     HapticFeedback.lightImpact();
 
     if (value == 'delete') {
@@ -126,50 +150,59 @@ class _LockScreenState extends State<LockScreen> {
     }
   }
 
-  void _verifyPin() {
+  Future<void> _verifyPin() async {
     final settings = context.read<SettingsProvider>();
+    if (settings.isPinLockedOut) return;
 
     if (settings.verifyPin(_enteredPin)) {
+      await settings.recordSuccessfulPinEntry();
       _onAuthSuccess();
     } else {
       HapticFeedback.heavyImpact();
       setState(() {
         _showError = true;
-        _attempts++;
         _enteredPin = '';
       });
-
-      if (_attempts >= _maxAttempts) {
-        _showLockoutDialog();
-      }
+      await settings.recordFailedPinAttempt();
+      _startLockoutTimerIfNeeded();
     }
   }
 
   void _onAuthSuccess() {
     HapticFeedback.mediumImpact();
-    Navigator.pushReplacementNamed(context, AppRoutes.home);
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context, true);
+    } else {
+      Navigator.pushReplacementNamed(context, AppRoutes.home);
+    }
   }
 
-  void _showLockoutDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: const Text('Too Many Attempts'),
-        content: const Text(
-          'You have entered the wrong PIN too many times. Please wait 30 seconds before trying again.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() => _attempts = 0);
-            },
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+  void _startLockoutTimerIfNeeded() {
+    _lockoutTimer?.cancel();
+    final settings = context.read<SettingsProvider>();
+    if (!settings.isPinLockedOut) return;
+
+    _lockoutTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      final provider = context.read<SettingsProvider>();
+      if (!provider.isPinLockedOut) {
+        await provider.clearPinLockout();
+        timer.cancel();
+      }
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _lockoutTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -177,6 +210,7 @@ class _LockScreenState extends State<LockScreen> {
     final settings = context.watch<SettingsProvider>();
     final showBiometricButton =
         settings.biometricEnabled && _biometricAvailable;
+    final isLockedOut = settings.isPinLockedOut;
 
     return Scaffold(
       body: Container(
@@ -253,10 +287,12 @@ class _LockScreenState extends State<LockScreen> {
                     }),
                   ),
 
-                  if (_showError) ...[
+                  if (_showError || isLockedOut) ...[
                     const SizedBox(height: 16),
                     Text(
-                      'Incorrect PIN. ${_maxAttempts - _attempts} attempts remaining.',
+                      isLockedOut
+                          ? 'Too many failed attempts. Try again in ${settings.pinLockoutSecondsRemaining}s.'
+                          : 'Incorrect PIN. ${settings.pinAttemptsRemaining} attempts remaining.',
                       style: const TextStyle(
                         color: Colors.red,
                         fontWeight: FontWeight.w500,

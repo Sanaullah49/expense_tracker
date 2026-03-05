@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_sizes.dart';
 import '../../data/models/category_model.dart';
+import '../../providers/budget_provider.dart';
 import '../../providers/category_provider.dart';
+import '../../providers/transaction_provider.dart';
 import '../../widgets/common/custom_text_field.dart';
 import '../../widgets/dialogs/icon_picker_dialog.dart';
 
@@ -283,11 +285,23 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
 
     if (confirm == true) {
       if (mounted) {
-        await context.read<CategoryProvider>().deleteCategory(
+        final success = await context.read<CategoryProvider>().deleteCategory(
           widget.category!.id,
         );
-        if (mounted) {
+        if (success && mounted) {
+          await Future.wait([
+            context.read<TransactionProvider>().loadTransactions(),
+            context.read<BudgetProvider>().loadBudgets(),
+          ]);
+          if (!mounted) return;
           Navigator.pop(context);
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to delete category'),
+              backgroundColor: AppColors.error,
+            ),
+          );
         }
       }
     }

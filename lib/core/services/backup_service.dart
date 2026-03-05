@@ -8,11 +8,13 @@ import 'package:share_plus/share_plus.dart';
 import '../../data/database/database_helper.dart';
 import '../../data/models/account_model.dart';
 import '../../data/models/budget_model.dart';
-import '../../data/models/category_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../services/storage_service.dart';
 
 class BackupService {
+  static const int _supportedBackupVersion = 1;
+  static const int _maxRecordsPerCollection = 50000;
+
   static final BackupService _instance = BackupService._();
   factory BackupService() => _instance;
   BackupService._();
@@ -90,7 +92,11 @@ class BackupService {
   Future<bool> importBackup(File file) async {
     try {
       final jsonString = await file.readAsString();
-      final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
+      final decoded = jsonDecode(jsonString);
+      if (decoded is! Map) {
+        throw const FormatException('Backup root must be an object');
+      }
+      final backupData = Map<String, dynamic>.from(decoded);
 
       return await restoreFromBackup(backupData);
     } catch (e) {
@@ -100,28 +106,26 @@ class BackupService {
   }
 
   Future<bool> restoreFromBackup(Map<String, dynamic> backupData) async {
+    final parsedBackup = _validateBackupDataOrThrow(backupData);
     final db = await _db.database;
 
     return await db.transaction((txn) async {
       try {
-        final version = backupData['version'] as int?;
-        if (version == null) throw Exception('Invalid backup format');
-
-        if (backupData['settings'] != null) {
-          final settings = backupData['settings'] as Map<String, dynamic>;
+        if (parsedBackup.settings != null) {
+          final settings = parsedBackup.settings!;
           final storage = await StorageService.getInstance();
 
           if (settings['currencyCode'] != null) {
-            await storage.setCurrencyCode(settings['currencyCode']);
+            await storage.setCurrencyCode(settings['currencyCode'] as String);
           }
           if (settings['currencySymbol'] != null) {
-            await storage.setCurrencySymbol(settings['currencySymbol']);
+            await storage.setCurrencySymbol(settings['currencySymbol'] as String);
           }
           if (settings['locale'] != null) {
-            await storage.setLocale(settings['locale']);
+            await storage.setLocale(settings['locale'] as String);
           }
           if (settings['themeMode'] != null) {
-            await storage.setThemeMode(settings['themeMode']);
+            await storage.setThemeMode(settings['themeMode'] as int);
           }
         }
 
@@ -130,31 +134,20 @@ class BackupService {
         await txn.delete('accounts');
         await txn.delete('budgets');
 
-        if (backupData['categories'] != null) {
-          for (var map in (backupData['categories'] as List)) {
-            await txn.insert('categories', CategoryModel.fromMap(map).toMap());
-          }
+        for (final map in parsedBackup.categories) {
+          await txn.insert('categories', map);
         }
 
-        if (backupData['accounts'] != null) {
-          for (var map in (backupData['accounts'] as List)) {
-            await txn.insert('accounts', AccountModel.fromMap(map).toMap());
-          }
+        for (final map in parsedBackup.accounts) {
+          await txn.insert('accounts', map);
         }
 
-        if (backupData['transactions'] != null) {
-          for (var map in (backupData['transactions'] as List)) {
-            await txn.insert(
-              'transactions',
-              TransactionModel.fromMap(map).toMap(),
-            );
-          }
+        for (final map in parsedBackup.transactions) {
+          await txn.insert('transactions', map);
         }
 
-        if (backupData['budgets'] != null) {
-          for (var map in (backupData['budgets'] as List)) {
-            await txn.insert('budgets', BudgetModel.fromMap(map).toMap());
-          }
+        for (final map in parsedBackup.budgets) {
+          await txn.insert('budgets', map);
         }
 
         return true;
@@ -178,30 +171,21 @@ class BackupService {
   Future<BackupValidationResult> validateBackup(File file) async {
     try {
       final jsonString = await file.readAsString();
-      final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
-
-      final version = backupData['version'] as int?;
-      final createdAt = backupData['createdAt'] as String?;
-      final transactions = backupData['transactions'] as List?;
-      final categories = backupData['categories'] as List?;
-      final accounts = backupData['accounts'] as List?;
-      final budgets = backupData['budgets'] as List?;
-
-      if (version == null) {
-        return BackupValidationResult(
-          isValid: false,
-          error: 'Invalid backup format: missing version',
-        );
+      final decoded = jsonDecode(jsonString);
+      if (decoded is! Map) {
+        throw const FormatException('Backup root must be an object');
       }
+      final backupData = Map<String, dynamic>.from(decoded);
+      final parsedBackup = _validateBackupDataOrThrow(backupData);
 
       return BackupValidationResult(
         isValid: true,
-        version: version,
-        createdAt: createdAt != null ? DateTime.parse(createdAt) : null,
-        transactionCount: transactions?.length ?? 0,
-        categoryCount: categories?.length ?? 0,
-        accountCount: accounts?.length ?? 0,
-        budgetCount: budgets?.length ?? 0,
+        version: parsedBackup.version,
+        createdAt: parsedBackup.createdAt,
+        transactionCount: parsedBackup.transactions.length,
+        categoryCount: parsedBackup.categories.length,
+        accountCount: parsedBackup.accounts.length,
+        budgetCount: parsedBackup.budgets.length,
       );
     } catch (e) {
       return BackupValidationResult(
@@ -324,6 +308,521 @@ class BackupService {
       await autoBackup(retention);
     }
   }
+
+  _ParsedBackup _validateBackupDataOrThrow(Map<String, dynamic> backupData) {
+    final version = backupData['version'];
+    if (version is! int) {
+      throw const FormatException('Invalid backup version');
+    }
+    if (version > _supportedBackupVersion) {
+      throw FormatException('Unsupported backup version: $version');
+    }
+
+    DateTime? createdAt;
+    final createdAtRaw = backupData['createdAt'];
+    if (createdAtRaw != null) {
+      if (createdAtRaw is! String) {
+        throw const FormatException('createdAt must be a string');
+      }
+      createdAt = _parseIsoDateTime(createdAtRaw, 'createdAt');
+    }
+
+    final settings = _normalizeSettings(backupData['settings']);
+    final categories = _normalizeCategoryRecords(
+      _readRecordList(backupData, 'categories'),
+    );
+    final accounts = _normalizeAccountRecords(
+      _readRecordList(backupData, 'accounts'),
+    );
+    final categoryIds = categories.map((c) => c['id'] as String).toSet();
+    final accountIds = accounts.map((a) => a['id'] as String).toSet();
+
+    final transactions = _normalizeTransactionRecords(
+      _readRecordList(backupData, 'transactions'),
+      categoryIds: categoryIds,
+      accountIds: accountIds,
+    );
+
+    final budgets = _normalizeBudgetRecords(
+      _readRecordList(backupData, 'budgets'),
+      categoryIds: categoryIds,
+    );
+
+    return _ParsedBackup(
+      version: version,
+      createdAt: createdAt,
+      settings: settings,
+      transactions: transactions,
+      categories: categories,
+      accounts: accounts,
+      budgets: budgets,
+    );
+  }
+
+  Map<String, dynamic>? _normalizeSettings(dynamic rawSettings) {
+    if (rawSettings == null) return null;
+    if (rawSettings is! Map) {
+      throw const FormatException('settings must be an object');
+    }
+
+    final settings = Map<String, dynamic>.from(rawSettings);
+    final normalized = <String, dynamic>{};
+
+    if (settings['currencyCode'] != null) {
+      normalized['currencyCode'] = _asString(
+        settings['currencyCode'],
+        'settings.currencyCode',
+        maxLength: 8,
+      );
+    }
+    if (settings['currencySymbol'] != null) {
+      normalized['currencySymbol'] = _asString(
+        settings['currencySymbol'],
+        'settings.currencySymbol',
+        maxLength: 8,
+      );
+    }
+    if (settings['locale'] != null) {
+      normalized['locale'] = _asString(
+        settings['locale'],
+        'settings.locale',
+        maxLength: 32,
+      );
+    }
+    if (settings['themeMode'] != null) {
+      final mode = _normalizeThemeMode(settings['themeMode']);
+      normalized['themeMode'] = mode;
+    }
+
+    return normalized;
+  }
+
+  List<Map<String, dynamic>> _readRecordList(
+    Map<String, dynamic> backupData,
+    String fieldName,
+  ) {
+    final rawList = backupData[fieldName];
+    if (rawList == null) return [];
+    if (rawList is! List) {
+      throw FormatException('$fieldName must be a list');
+    }
+    if (rawList.length > _maxRecordsPerCollection) {
+      throw FormatException('$fieldName exceeds max allowed records');
+    }
+
+    final records = <Map<String, dynamic>>[];
+    for (var i = 0; i < rawList.length; i++) {
+      final rawRecord = rawList[i];
+      if (rawRecord is! Map) {
+        throw FormatException('$fieldName[$i] must be an object');
+      }
+      records.add(Map<String, dynamic>.from(rawRecord));
+    }
+
+    return records;
+  }
+
+  List<Map<String, dynamic>> _normalizeCategoryRecords(
+    List<Map<String, dynamic>> records,
+  ) {
+    final normalized = <Map<String, dynamic>>[];
+    final seenIds = <String>{};
+
+    for (var i = 0; i < records.length; i++) {
+      final record = records[i];
+      final id = _asString(record['id'], 'categories[$i].id', maxLength: 64);
+      if (!seenIds.add(id)) {
+        throw FormatException('Duplicate category id: $id');
+      }
+
+      normalized.add({
+        'id': id,
+        'name': _asString(record['name'], 'categories[$i].name', maxLength: 120),
+        'iconCodePoint': _asInt(
+          record['iconCodePoint'],
+          'categories[$i].iconCodePoint',
+          min: 0,
+        ),
+        'iconFontFamily': record['iconFontFamily'] == null
+            ? null
+            : _asString(
+                record['iconFontFamily'],
+                'categories[$i].iconFontFamily',
+                maxLength: 64,
+              ),
+        'color': _asInt(record['color'], 'categories[$i].color'),
+        'isIncome': _asBoolFlag(record['isIncome'], 'categories[$i].isIncome'),
+        'isDefault': _asBoolFlag(
+          record['isDefault'] ?? 0,
+          'categories[$i].isDefault',
+        ),
+        'sortOrder': _asInt(record['sortOrder'] ?? 0, 'categories[$i].sortOrder'),
+        'createdAt': _parseIsoDateTime(
+          _asString(record['createdAt'], 'categories[$i].createdAt'),
+          'categories[$i].createdAt',
+        ).toIso8601String(),
+      });
+    }
+
+    return normalized;
+  }
+
+  List<Map<String, dynamic>> _normalizeAccountRecords(
+    List<Map<String, dynamic>> records,
+  ) {
+    final normalized = <Map<String, dynamic>>[];
+    final seenIds = <String>{};
+
+    for (var i = 0; i < records.length; i++) {
+      final record = records[i];
+      final id = _asString(record['id'], 'accounts[$i].id', maxLength: 64);
+      if (!seenIds.add(id)) {
+        throw FormatException('Duplicate account id: $id');
+      }
+
+      normalized.add({
+        'id': id,
+        'name': _asString(record['name'], 'accounts[$i].name', maxLength: 120),
+        'type': _asInt(
+          record['type'],
+          'accounts[$i].type',
+          min: 0,
+          max: AccountType.values.length - 1,
+        ),
+        'balance': _asDouble(record['balance'], 'accounts[$i].balance'),
+        'initialBalance': _asDouble(
+          record['initialBalance'],
+          'accounts[$i].initialBalance',
+        ),
+        'iconCodePoint': _asInt(
+          record['iconCodePoint'],
+          'accounts[$i].iconCodePoint',
+          min: 0,
+        ),
+        'iconFontFamily': record['iconFontFamily'] == null
+            ? null
+            : _asString(
+                record['iconFontFamily'],
+                'accounts[$i].iconFontFamily',
+                maxLength: 64,
+              ),
+        'color': _asInt(record['color'], 'accounts[$i].color'),
+        'currency': _asString(
+          record['currency'],
+          'accounts[$i].currency',
+          maxLength: 8,
+        ),
+        'includeInTotal': _asBoolFlag(
+          record['includeInTotal'] ?? 1,
+          'accounts[$i].includeInTotal',
+        ),
+        'isDefault': _asBoolFlag(
+          record['isDefault'] ?? 0,
+          'accounts[$i].isDefault',
+        ),
+        'createdAt': _parseIsoDateTime(
+          _asString(record['createdAt'], 'accounts[$i].createdAt'),
+          'accounts[$i].createdAt',
+        ).toIso8601String(),
+        'updatedAt': _parseIsoDateTime(
+          _asString(record['updatedAt'], 'accounts[$i].updatedAt'),
+          'accounts[$i].updatedAt',
+        ).toIso8601String(),
+      });
+    }
+
+    return normalized;
+  }
+
+  List<Map<String, dynamic>> _normalizeTransactionRecords(
+    List<Map<String, dynamic>> records, {
+    required Set<String> categoryIds,
+    required Set<String> accountIds,
+  }) {
+    final normalized = <Map<String, dynamic>>[];
+    final seenIds = <String>{};
+
+    for (var i = 0; i < records.length; i++) {
+      final record = records[i];
+      final id = _asString(record['id'], 'transactions[$i].id', maxLength: 64);
+      if (!seenIds.add(id)) {
+        throw FormatException('Duplicate transaction id: $id');
+      }
+
+      final type = _asInt(
+        record['type'],
+        'transactions[$i].type',
+        min: 0,
+        max: TransactionType.values.length - 1,
+      );
+      final categoryId = _asString(
+        record['categoryId'],
+        'transactions[$i].categoryId',
+        maxLength: 64,
+      );
+      if (!categoryIds.contains(categoryId)) {
+        throw FormatException(
+          'transactions[$i].categoryId references unknown category',
+        );
+      }
+
+      final accountId = _asString(
+        record['accountId'],
+        'transactions[$i].accountId',
+        maxLength: 64,
+      );
+      if (!accountIds.contains(accountId)) {
+        throw FormatException(
+          'transactions[$i].accountId references unknown account',
+        );
+      }
+
+      String? toAccountId;
+      if (record['toAccountId'] != null) {
+        toAccountId = _asString(
+          record['toAccountId'],
+          'transactions[$i].toAccountId',
+          maxLength: 64,
+        );
+        if (!accountIds.contains(toAccountId)) {
+          throw FormatException(
+            'transactions[$i].toAccountId references unknown account',
+          );
+        }
+      }
+
+      if (type == TransactionType.transfer.index) {
+        if (toAccountId == null) {
+          throw FormatException(
+            'transactions[$i].toAccountId is required for transfer',
+          );
+        }
+        if (toAccountId == accountId) {
+          throw FormatException(
+            'transactions[$i] transfer account cannot equal destination account',
+          );
+        }
+      } else {
+        toAccountId = null;
+      }
+
+      normalized.add({
+        'id': id,
+        'title': _asString(record['title'], 'transactions[$i].title', maxLength: 200),
+        'amount': _asDouble(record['amount'], 'transactions[$i].amount', min: 0),
+        'type': type,
+        'categoryId': categoryId,
+        'accountId': accountId,
+        'toAccountId': toAccountId,
+        'date': _parseIsoDateTime(
+          _asString(record['date'], 'transactions[$i].date'),
+          'transactions[$i].date',
+        ).toIso8601String(),
+        'note': record['note'] == null
+            ? null
+            : _asString(record['note'], 'transactions[$i].note', maxLength: 2000),
+        'receiptImage': record['receiptImage'] == null
+            ? null
+            : _asString(
+                record['receiptImage'],
+                'transactions[$i].receiptImage',
+                maxLength: 4096,
+              ),
+        'isRecurring': _asBoolFlag(
+          record['isRecurring'] ?? 0,
+          'transactions[$i].isRecurring',
+        ),
+        'recurringId': record['recurringId'] == null
+            ? null
+            : _asString(
+                record['recurringId'],
+                'transactions[$i].recurringId',
+                maxLength: 64,
+              ),
+        'createdAt': _parseIsoDateTime(
+          _asString(record['createdAt'], 'transactions[$i].createdAt'),
+          'transactions[$i].createdAt',
+        ).toIso8601String(),
+        'updatedAt': _parseIsoDateTime(
+          _asString(record['updatedAt'], 'transactions[$i].updatedAt'),
+          'transactions[$i].updatedAt',
+        ).toIso8601String(),
+      });
+    }
+
+    return normalized;
+  }
+
+  List<Map<String, dynamic>> _normalizeBudgetRecords(
+    List<Map<String, dynamic>> records, {
+    required Set<String> categoryIds,
+  }) {
+    final normalized = <Map<String, dynamic>>[];
+    final seenIds = <String>{};
+
+    for (var i = 0; i < records.length; i++) {
+      final record = records[i];
+      final id = _asString(record['id'], 'budgets[$i].id', maxLength: 64);
+      if (!seenIds.add(id)) {
+        throw FormatException('Duplicate budget id: $id');
+      }
+
+      final categoryId = _asString(
+        record['categoryId'],
+        'budgets[$i].categoryId',
+        maxLength: 64,
+      );
+      if (!categoryIds.contains(categoryId)) {
+        throw FormatException('budgets[$i].categoryId references unknown category');
+      }
+
+      normalized.add({
+        'id': id,
+        'name': _asString(record['name'], 'budgets[$i].name', maxLength: 120),
+        'amount': _asDouble(record['amount'], 'budgets[$i].amount', min: 0),
+        'spent': _asDouble(record['spent'] ?? 0, 'budgets[$i].spent', min: 0),
+        'categoryId': categoryId,
+        'period': _asInt(
+          record['period'],
+          'budgets[$i].period',
+          min: 0,
+          max: BudgetPeriod.values.length - 1,
+        ),
+        'startDate': _parseIsoDateTime(
+          _asString(record['startDate'], 'budgets[$i].startDate'),
+          'budgets[$i].startDate',
+        ).toIso8601String(),
+        'endDate': _parseIsoDateTime(
+          _asString(record['endDate'], 'budgets[$i].endDate'),
+          'budgets[$i].endDate',
+        ).toIso8601String(),
+        'isActive': _asBoolFlag(record['isActive'] ?? 1, 'budgets[$i].isActive'),
+        'notifyOnExceed': _asBoolFlag(
+          record['notifyOnExceed'] ?? 1,
+          'budgets[$i].notifyOnExceed',
+        ),
+        'notifyAtPercent': _asInt(
+          record['notifyAtPercent'] ?? 80,
+          'budgets[$i].notifyAtPercent',
+          min: 1,
+          max: 100,
+        ),
+        'createdAt': _parseIsoDateTime(
+          _asString(record['createdAt'], 'budgets[$i].createdAt'),
+          'budgets[$i].createdAt',
+        ).toIso8601String(),
+        'updatedAt': _parseIsoDateTime(
+          _asString(record['updatedAt'], 'budgets[$i].updatedAt'),
+          'budgets[$i].updatedAt',
+        ).toIso8601String(),
+      });
+    }
+
+    return normalized;
+  }
+
+  String _asString(
+    dynamic value,
+    String fieldName, {
+    int maxLength = 1024,
+  }) {
+    if (value is! String) {
+      throw FormatException('$fieldName must be a string');
+    }
+    if (value.isEmpty) {
+      throw FormatException('$fieldName must not be empty');
+    }
+    if (value.length > maxLength) {
+      throw FormatException('$fieldName is too long');
+    }
+    return value;
+  }
+
+  int _asInt(dynamic value, String fieldName, {int? min, int? max}) {
+    int intValue;
+    if (value is int) {
+      intValue = value;
+    } else if (value is double && value == value.roundToDouble()) {
+      intValue = value.toInt();
+    } else {
+      throw FormatException('$fieldName must be an integer');
+    }
+
+    if (min != null && intValue < min) {
+      throw FormatException('$fieldName is below minimum');
+    }
+    if (max != null && intValue > max) {
+      throw FormatException('$fieldName is above maximum');
+    }
+    return intValue;
+  }
+
+  double _asDouble(dynamic value, String fieldName, {double? min}) {
+    if (value is! num) {
+      throw FormatException('$fieldName must be a number');
+    }
+    final doubleValue = value.toDouble();
+    if (doubleValue.isNaN || doubleValue.isInfinite) {
+      throw FormatException('$fieldName must be a finite number');
+    }
+    if (min != null && doubleValue < min) {
+      throw FormatException('$fieldName is below minimum');
+    }
+    return doubleValue;
+  }
+
+  int _asBoolFlag(dynamic value, String fieldName) {
+    if (value is bool) return value ? 1 : 0;
+    if (value is int && (value == 0 || value == 1)) return value;
+    throw FormatException('$fieldName must be a boolean flag');
+  }
+
+  DateTime _parseIsoDateTime(String value, String fieldName) {
+    final parsed = DateTime.tryParse(value);
+    if (parsed == null) {
+      throw FormatException('$fieldName must be a valid ISO datetime');
+    }
+    return parsed;
+  }
+
+  int _normalizeThemeMode(dynamic value) {
+    if (value is int) {
+      if (value < 0 || value > 2) {
+        throw FormatException('settings.themeMode is invalid: $value');
+      }
+      return value;
+    }
+
+    if (value is String) {
+      const modeMap = {'system': 0, 'light': 1, 'dark': 2};
+      final normalized = modeMap[value.toLowerCase()];
+      if (normalized != null) {
+        return normalized;
+      }
+    }
+
+    throw const FormatException('settings.themeMode is invalid');
+  }
+}
+
+class _ParsedBackup {
+  final int version;
+  final DateTime? createdAt;
+  final Map<String, dynamic>? settings;
+  final List<Map<String, dynamic>> transactions;
+  final List<Map<String, dynamic>> categories;
+  final List<Map<String, dynamic>> accounts;
+  final List<Map<String, dynamic>> budgets;
+
+  _ParsedBackup({
+    required this.version,
+    required this.createdAt,
+    required this.settings,
+    required this.transactions,
+    required this.categories,
+    required this.accounts,
+    required this.budgets,
+  });
 }
 
 class BackupValidationResult {

@@ -72,7 +72,35 @@ class CategoryProvider with ChangeNotifier {
 
   Future<bool> deleteCategory(String id) async {
     try {
-      await _db.deleteCategory(id);
+      final category = getCategoryById(id);
+      if (category == null) return false;
+
+      final fallbackCategoryId = category.isIncome
+          ? 'other_income'
+          : 'other_expense';
+      final db = await _db.database;
+
+      await db.transaction((txn) async {
+        await txn.update(
+          'transactions',
+          {'categoryId': fallbackCategoryId},
+          where: 'categoryId = ?',
+          whereArgs: [id],
+        );
+
+        await txn.update(
+          'budgets',
+          {
+            'categoryId': fallbackCategoryId,
+            'updatedAt': DateTime.now().toIso8601String(),
+          },
+          where: 'categoryId = ?',
+          whereArgs: [id],
+        );
+
+        await txn.delete('categories', where: 'id = ?', whereArgs: [id]);
+      });
+
       _categories.removeWhere((c) => c.id == id);
       notifyListeners();
       return true;

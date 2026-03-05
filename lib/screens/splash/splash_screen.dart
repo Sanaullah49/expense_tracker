@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -129,7 +130,19 @@ class _SplashScreenState extends State<SplashScreen>
       await Future.delayed(const Duration(milliseconds: 500));
 
       if (mounted) {
-        final isLockEnabled = settingsProvider.isLockEnabled;
+        bool isLockEnabled = settingsProvider.hasPin;
+        if (!isLockEnabled && settingsProvider.biometricEnabled) {
+          final localAuth = LocalAuthentication();
+          final canCheck = await localAuth.canCheckBiometrics;
+          final isSupported = await localAuth.isDeviceSupported();
+
+          if (canCheck && isSupported) {
+            isLockEnabled = true;
+          } else {
+            await settingsProvider.setBiometricEnabled(false);
+          }
+        }
+        if (!mounted) return;
 
         debugPrint('=== App Lock Check ===');
         debugPrint('Is first time: $isFirstTime');

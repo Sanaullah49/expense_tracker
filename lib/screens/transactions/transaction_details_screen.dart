@@ -509,35 +509,10 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     final success = await transactionProvider.addTransaction(duplicated);
 
     if (success) {
-      switch (duplicated.type) {
-        case TransactionType.income:
-          await accountProvider.updateBalance(
-            duplicated.accountId,
-            duplicated.amount,
-          );
-          break;
-        case TransactionType.expense:
-          await accountProvider.updateBalance(
-            duplicated.accountId,
-            -duplicated.amount,
-          );
-          await budgetProvider.updateBudgetSpent(
-            duplicated.categoryId,
-            duplicated.amount,
-          );
-          break;
-        case TransactionType.transfer:
-          await accountProvider.updateBalance(
-            duplicated.accountId,
-            -duplicated.amount,
-          );
-          if (duplicated.toAccountId != null) {
-            await accountProvider.updateBalance(
-              duplicated.toAccountId!,
-              duplicated.amount,
-            );
-          }
-          break;
+      await accountProvider.recalculateAllBalances();
+
+      if (duplicated.type == TransactionType.expense) {
+        await budgetProvider.recalculateCategoryBudgets(duplicated.categoryId);
       }
 
       if (context.mounted) {
@@ -571,9 +546,21 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
         final accountProvider = context.read<AccountProvider>();
         final budgetProvider = context.read<BudgetProvider>();
 
-        await _revertAccountBalance(accountProvider, transaction);
+        final success = await transactionProvider.deleteTransaction(transaction.id);
+        if (!success) {
+          if (mounted) {
+            setState(() => isDeleting = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to delete transaction'),
+                backgroundColor: AppColors.error,
+              ),
+            );
+          }
+          return;
+        }
 
-        await transactionProvider.deleteTransaction(transaction.id);
+        await accountProvider.recalculateAllBalances();
 
         if (transaction.type == TransactionType.expense) {
           await budgetProvider.recalculateCategoryBudgets(
@@ -602,38 +589,6 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
           ),
         );
       }
-    }
-  }
-
-  Future<void> _revertAccountBalance(
-    AccountProvider accountProvider,
-    TransactionModel transaction,
-  ) async {
-    switch (transaction.type) {
-      case TransactionType.income:
-        await accountProvider.updateBalance(
-          transaction.accountId,
-          -transaction.amount,
-        );
-        break;
-      case TransactionType.expense:
-        await accountProvider.updateBalance(
-          transaction.accountId,
-          transaction.amount,
-        );
-        break;
-      case TransactionType.transfer:
-        await accountProvider.updateBalance(
-          transaction.accountId,
-          transaction.amount,
-        );
-        if (transaction.toAccountId != null) {
-          await accountProvider.updateBalance(
-            transaction.toAccountId!,
-            -transaction.amount,
-          );
-        }
-        break;
     }
   }
 

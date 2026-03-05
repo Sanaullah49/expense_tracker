@@ -12,7 +12,9 @@ import '../../core/services/backup_service.dart';
 import '../../providers/account_provider.dart';
 import '../../providers/budget_provider.dart';
 import '../../providers/category_provider.dart';
+import '../../providers/currency_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../widgets/common/loading_overlay.dart';
 import '../../widgets/dialogs/confirm_dialog.dart';
@@ -112,8 +114,13 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             ),
             const SizedBox(height: AppSizes.md),
             const Text(
-              'Creates a backup file containing all your transactions, accounts, budgets, and categories.',
+              'Creates a backup JSON file containing all your transactions, accounts, budgets, and categories.',
               style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: AppSizes.xs),
+            Text(
+              'Backup files are not encrypted by the app. Store and share them carefully.',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
             const SizedBox(height: AppSizes.md),
             Row(
@@ -524,6 +531,9 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           context.read<AccountProvider>().loadAccounts(),
           context.read<CategoryProvider>().loadCategories(),
           context.read<BudgetProvider>().loadBudgets(),
+          context.read<SettingsProvider>().reload(),
+          context.read<CurrencyProvider>().reload(),
+          context.read<ThemeProvider>().reload(),
         ]);
 
         if (mounted) {

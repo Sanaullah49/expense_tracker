@@ -1130,29 +1130,28 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       bool success;
 
       if (_isEditing && _originalTransaction != null) {
-        await _revertAccountBalance(accountProvider, _originalTransaction!);
-
-        if (_originalTransaction!.type == TransactionType.expense) {
-          await budgetProvider.updateBudgetSpent(
-            _originalTransaction!.categoryId,
-            _originalTransaction!.amount,
-            subtract: true,
-          );
-        }
-
         success = await transactionProvider.updateTransaction(transaction);
       } else {
         success = await transactionProvider.addTransaction(transaction);
       }
 
       if (success) {
-        await _applyAccountBalance(accountProvider, transaction);
+        await accountProvider.recalculateAllBalances();
 
-        if (transaction.type == TransactionType.expense) {
-          await budgetProvider.updateBudgetSpent(
-            transaction.categoryId,
-            transaction.amount,
-          );
+        final categoriesToRecalculate = <String>{};
+        if (_isEditing && _originalTransaction != null) {
+          if (_originalTransaction!.type == TransactionType.expense) {
+            categoriesToRecalculate.add(_originalTransaction!.categoryId);
+          }
+          if (transaction.type == TransactionType.expense) {
+            categoriesToRecalculate.add(transaction.categoryId);
+          }
+        } else if (transaction.type == TransactionType.expense) {
+          categoriesToRecalculate.add(transaction.categoryId);
+        }
+
+        for (final categoryId in categoriesToRecalculate) {
+          await budgetProvider.recalculateCategoryBudgets(categoryId);
         }
 
         if (mounted) {
@@ -1192,70 +1191,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       if (mounted) {
         setState(() => _isLoading = false);
       }
-    }
-  }
-
-  Future<void> _applyAccountBalance(
-    AccountProvider accountProvider,
-    TransactionModel transaction,
-  ) async {
-    switch (transaction.type) {
-      case TransactionType.income:
-        await accountProvider.updateBalance(
-          transaction.accountId,
-          transaction.amount,
-        );
-        break;
-      case TransactionType.expense:
-        await accountProvider.updateBalance(
-          transaction.accountId,
-          -transaction.amount,
-        );
-        break;
-      case TransactionType.transfer:
-        await accountProvider.updateBalance(
-          transaction.accountId,
-          -transaction.amount,
-        );
-        if (transaction.toAccountId != null) {
-          await accountProvider.updateBalance(
-            transaction.toAccountId!,
-            transaction.amount,
-          );
-        }
-        break;
-    }
-  }
-
-  Future<void> _revertAccountBalance(
-    AccountProvider accountProvider,
-    TransactionModel transaction,
-  ) async {
-    switch (transaction.type) {
-      case TransactionType.income:
-        await accountProvider.updateBalance(
-          transaction.accountId,
-          -transaction.amount,
-        );
-        break;
-      case TransactionType.expense:
-        await accountProvider.updateBalance(
-          transaction.accountId,
-          transaction.amount,
-        );
-        break;
-      case TransactionType.transfer:
-        await accountProvider.updateBalance(
-          transaction.accountId,
-          transaction.amount,
-        );
-        if (transaction.toAccountId != null) {
-          await accountProvider.updateBalance(
-            transaction.toAccountId!,
-            -transaction.amount,
-          );
-        }
-        break;
     }
   }
 
@@ -1301,20 +1236,28 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     if (confirm == true && mounted) {
       final accountProvider = context.read<AccountProvider>();
       final budgetProvider = context.read<BudgetProvider>();
+      final transactionProvider = context.read<TransactionProvider>();
 
-      await _revertAccountBalance(accountProvider, widget.transaction!);
-
-      if (widget.transaction!.type == TransactionType.expense) {
-        await budgetProvider.updateBudgetSpent(
-          widget.transaction!.categoryId,
-          widget.transaction!.amount,
-          subtract: true,
-        );
+      final success = await transactionProvider.deleteTransaction(
+        widget.transaction!.id,
+      );
+      if (!success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to delete transaction'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+        return;
       }
 
-      if (mounted) {
-        await context.read<TransactionProvider>().deleteTransaction(
-          widget.transaction!.id,
+      await accountProvider.recalculateAllBalances();
+
+      if (widget.transaction!.type == TransactionType.expense) {
+        await budgetProvider.recalculateCategoryBudgets(
+          widget.transaction!.categoryId,
         );
       }
 

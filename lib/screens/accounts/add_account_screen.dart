@@ -6,7 +6,9 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_sizes.dart';
 import '../../data/models/account_model.dart';
 import '../../providers/account_provider.dart';
+import '../../providers/budget_provider.dart';
 import '../../providers/currency_provider.dart';
+import '../../providers/transaction_provider.dart';
 import '../../widgets/common/custom_text_field.dart';
 import '../../widgets/dialogs/icon_picker_dialog.dart';
 
@@ -567,7 +569,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete Account'),
         content: const Text(
-          'Are you sure you want to delete this account? All transactions associated with this account will remain but won\'t be linked.',
+          'Are you sure you want to delete this account? All transactions associated with this account will be permanently deleted.',
         ),
         actions: [
           TextButton(
@@ -591,7 +593,19 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
         widget.account!.id,
       );
       if (success && mounted) {
+        await Future.wait([
+          context.read<TransactionProvider>().loadTransactions(),
+          context.read<BudgetProvider>().loadBudgets(),
+        ]);
+        if (!mounted) return;
         Navigator.pop(context);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to delete account'),
+            backgroundColor: AppColors.error,
+          ),
+        );
       }
     }
   }

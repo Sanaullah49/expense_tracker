@@ -158,8 +158,8 @@ class TransactionProvider with ChangeNotifier {
   }
 
   void setDateRange(DateTime start, DateTime end) {
-    _startDate = start;
-    _endDate = end;
+    _startDate = _normalizeStartDate(start);
+    _endDate = _normalizeEndDate(end);
     _applyFiltersAndSort();
     notifyListeners();
   }
@@ -208,8 +208,7 @@ class TransactionProvider with ChangeNotifier {
   void _applyFiltersAndSort() {
     _filteredTransactions = _transactions.where((t) {
       if (_startDate != null && t.date.isBefore(_startDate!)) return false;
-      if (_endDate != null &&
-          t.date.isAfter(_endDate!.add(const Duration(days: 1)))) {
+      if (_endDate != null && t.date.isAfter(_endDate!)) {
         return false;
       }
 
@@ -306,10 +305,28 @@ class TransactionProvider with ChangeNotifier {
     DateTime start,
     DateTime end,
   ) {
+    final normalizedStart = _normalizeStartDate(start);
+    final normalizedEnd = _normalizeEndDate(end);
+
     return _transactions.where((t) {
-      return t.date.isAfter(start.subtract(const Duration(days: 1))) &&
-          t.date.isBefore(end.add(const Duration(days: 1)));
+      return !t.date.isBefore(normalizedStart) &&
+          !t.date.isAfter(normalizedEnd);
     }).toList();
+  }
+
+  DateTime _normalizeStartDate(DateTime date) {
+    return DateTime(date.year, date.month, date.day);
+  }
+
+  DateTime _normalizeEndDate(DateTime date) {
+    final hasTime = date.hour != 0 ||
+        date.minute != 0 ||
+        date.second != 0 ||
+        date.millisecond != 0 ||
+        date.microsecond != 0;
+
+    if (hasTime) return date;
+    return DateTime(date.year, date.month, date.day, 23, 59, 59, 999, 999);
   }
 
   Map<String, double> getCategoryTotals({DateTime? start, DateTime? end}) {

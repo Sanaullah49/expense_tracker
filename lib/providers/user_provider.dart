@@ -32,28 +32,34 @@ class UserProvider with ChangeNotifier {
         id: userId,
         name: _storage.userName,
         email: _storage.userEmail,
+        avatar: _storage.userAvatar,
         currency: _storage.currencyCode,
         currencySymbol: _storage.currencySymbol,
         locale: _storage.locale,
+        createdAt: _storage.userCreatedAt,
       );
     }
   }
 
   Future<void> updateUser({String? name, String? email, String? avatar}) async {
     if (_user == null) {
+      final createdAt = DateTime.now();
       _user = UserModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: name,
         email: email,
         avatar: avatar,
+        createdAt: createdAt,
       );
       await _storage.setUserId(_user!.id);
+      await _storage.setUserCreatedAt(createdAt);
     } else {
       _user = _user!.copyWith(name: name, email: email, avatar: avatar);
     }
 
     if (name != null) await _storage.setUserName(name);
     if (email != null) await _storage.setUserEmail(email);
+    await _storage.setUserAvatar(_user!.avatar);
 
     notifyListeners();
   }
@@ -63,6 +69,8 @@ class UserProvider with ChangeNotifier {
     await _storage.remove(StorageService.keyUserId);
     await _storage.remove(StorageService.keyUserName);
     await _storage.remove(StorageService.keyUserEmail);
+    await _storage.remove(StorageService.keyUserAvatar);
+    await _storage.remove(StorageService.keyUserCreatedAt);
     notifyListeners();
   }
 }

@@ -54,6 +54,7 @@ dependencies:
 
   # Security
   local_auth: ^3.0.0
+  crypto: ^3.0.7
 
   # Image
   image_picker: ^1.2.1

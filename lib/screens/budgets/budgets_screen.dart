@@ -64,15 +64,22 @@ class BudgetsScreen extends StatelessWidget {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AddBudgetScreen()),
-          );
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Add Budget'),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(
+          right: AppSizes.sm,
+          bottom: AppSizes.md,
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AddBudgetScreen()),
+            );
+          },
+          icon: const Icon(Icons.add),
+          label: const Text('Create Budget'),
+        ),
       ),
     );
   }
@@ -102,15 +109,24 @@ class BudgetsScreen extends StatelessWidget {
             style: TextStyle(color: Colors.grey.shade500),
           ),
           const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AddBudgetScreen()),
-              );
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('Create Budget'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSizes.md),
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AddBudgetScreen()),
+                );
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Create Budget'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSizes.lg,
+                  vertical: AppSizes.md,
+                ),
+              ),
+            ),
           ),
         ],
       ),

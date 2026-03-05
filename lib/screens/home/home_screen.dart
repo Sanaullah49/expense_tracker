@@ -28,8 +28,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   int _currentIndex = 0;
+  bool _isShowingLock = false;
 
   final List<Widget> _screens = [
     const _HomeTab(),
@@ -42,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshData();
     });
@@ -53,6 +55,26 @@ class _HomeScreenState extends State<HomeScreen>
       context.read<AccountProvider>().loadAccounts(),
       context.read<BudgetProvider>().loadBudgets(),
     ]);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _lockOnResumeIfNeeded();
+    }
+  }
+
+  Future<void> _lockOnResumeIfNeeded() async {
+    if (!mounted || _isShowingLock) return;
+
+    final settings = context.read<SettingsProvider>();
+    if (!settings.isLockEnabled) return;
+
+    _isShowingLock = true;
+    await Navigator.pushNamed(context, AppRoutes.lock);
+    if (mounted) {
+      _isShowingLock = false;
+    }
   }
 
   @override
@@ -161,6 +183,12 @@ class _HomeScreenState extends State<HomeScreen>
       backgroundColor: Colors.transparent,
       builder: (context) => const _AddOptionsSheet(),
     );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 }
 
@@ -600,7 +628,7 @@ class _HomeTabState extends State<_HomeTab> with AutomaticKeepAliveClientMixin {
               child: TransactionItem(
                 transaction: transaction,
                 onTap: () async {
-                  final result = await Navigator.pushNamed(
+                  await Navigator.pushNamed(
                     context,
                     AppRoutes.transactionDetails,
                     arguments: {'transactionId': transaction.id},

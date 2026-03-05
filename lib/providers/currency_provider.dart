@@ -50,4 +50,8 @@ class CurrencyProvider with ChangeNotifier {
     );
     return formatter.format(amount);
   }
+
+  Future<void> reload() async {
+    await _loadCurrency();
+  }
 }

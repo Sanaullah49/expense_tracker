@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../core/constants/app_colors.dart';
 import '../data/database/database_helper.dart';
 import '../data/models/account_model.dart';
+import '../data/models/transaction_model.dart';
 
 class AccountProvider with ChangeNotifier {
   final DatabaseHelper _db = DatabaseHelper.instance;
@@ -214,8 +215,15 @@ class AccountProvider with ChangeNotifier {
       }
 
       final wasDefault = account.isDefault;
-
-      await _db.deleteAccount(id);
+      final db = await _db.database;
+      await db.transaction((txn) async {
+        await txn.delete(
+          'transactions',
+          where: 'accountId = ? OR toAccountId = ?',
+          whereArgs: [id, id],
+        );
+        await txn.delete('accounts', where: 'id = ?', whereArgs: [id]);
+      });
       _accounts.removeWhere((a) => a.id == id);
 
       if (wasDefault && _accounts.isNotEmpty) {
@@ -227,6 +235,56 @@ class AccountProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('Error deleting account: $e');
       return false;
+    }
+  }
+
+  Future<void> recalculateAllBalances() async {
+    try {
+      final db = await _db.database;
+      final txRows = await db.query('transactions');
+      final transactions = txRows.map((row) => TransactionModel.fromMap(row)).toList();
+
+      bool hasUpdates = false;
+      for (int i = 0; i < _accounts.length; i++) {
+        final account = _accounts[i];
+        double calculated = account.initialBalance;
+
+        for (final tx in transactions) {
+          switch (tx.type) {
+            case TransactionType.income:
+              if (tx.accountId == account.id) {
+                calculated += tx.amount;
+              }
+              break;
+            case TransactionType.expense:
+              if (tx.accountId == account.id) {
+                calculated -= tx.amount;
+              }
+              break;
+            case TransactionType.transfer:
+              if (tx.accountId == account.id) {
+                calculated -= tx.amount;
+              }
+              if (tx.toAccountId == account.id) {
+                calculated += tx.amount;
+              }
+              break;
+          }
+        }
+
+        if (account.balance != calculated) {
+          await _db.updateAccountBalance(account.id, calculated);
+          _accounts[i] = account.copyWith(balance: calculated);
+          hasUpdates = true;
+        }
+      }
+
+      if (hasUpdates) {
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error recalculating account balances: $e');
+      await loadAccounts();
     }
   }
 

@@ -1,10 +1,18 @@
-import 'package:flutter/foundation.dart';
+import 'dart:convert';
+import 'dart:math';
 
+import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
+import 'package:local_auth/local_auth.dart';
+
+import '../core/services/notification_service.dart';
 import '../core/services/storage_service.dart';
 
 class SettingsProvider with ChangeNotifier {
   StorageService? _storage;
   bool _isInitialized = false;
+  final _notificationService = NotificationService();
+  final _localAuth = LocalAuthentication();
 
   bool _notificationsEnabled = true;
   bool _budgetAlertsEnabled = true;
@@ -13,6 +21,10 @@ class SettingsProvider with ChangeNotifier {
   bool _biometricEnabled = false;
   bool _showBalance = true;
   String? _pinHash;
+  String? _pinSalt;
+  int _pinFailedAttempts = 0;
+  DateTime? _pinLockoutUntil;
+  static const int _pinAttemptsBeforeLockout = 5;
 
   bool _autoBackupEnabled = false;
   int _autoBackupRetention = 5;
@@ -29,6 +41,19 @@ class SettingsProvider with ChangeNotifier {
   bool get showBalance => _showBalance;
   bool get hasPin => _pinHash != null && _pinHash!.isNotEmpty;
   bool get isLockEnabled => hasPin || _biometricEnabled;
+  int get pinFailedAttempts => _pinFailedAttempts;
+  bool get isPinLockedOut =>
+      _pinLockoutUntil != null && DateTime.now().isBefore(_pinLockoutUntil!);
+  int get pinAttemptsRemaining {
+    if (isPinLockedOut) return 0;
+    final usedAttempts = _pinFailedAttempts % _pinAttemptsBeforeLockout;
+    return _pinAttemptsBeforeLockout - usedAttempts;
+  }
+  int get pinLockoutSecondsRemaining {
+    if (!isPinLockedOut) return 0;
+    return _pinLockoutUntil!.difference(DateTime.now()).inSeconds.clamp(0, 9999);
+  }
+  DateTime? get pinLockoutUntil => _pinLockoutUntil;
 
   SettingsProvider() {
     _init();
@@ -37,7 +62,7 @@ class SettingsProvider with ChangeNotifier {
   Future<void> _init() async {
     try {
       _storage = await StorageService.getInstance();
-      _loadSettings();
+      await _loadSettings();
       _isInitialized = true;
       notifyListeners();
     } catch (e) {
@@ -47,7 +72,7 @@ class SettingsProvider with ChangeNotifier {
     }
   }
 
-  void _loadSettings() {
+  Future<void> _loadSettings() async {
     if (_storage == null) return;
 
     _notificationsEnabled = _storage!.notificationsEnabled;
@@ -57,8 +82,19 @@ class SettingsProvider with ChangeNotifier {
     _biometricEnabled = _storage!.biometricEnabled;
     _showBalance = _storage!.showBalance;
     _pinHash = _storage!.pinHash;
+    _pinSalt = _storage!.pinSalt;
+    _pinFailedAttempts = _storage!.pinFailedAttempts;
+    _pinLockoutUntil = _storage!.pinLockoutUntil;
     _autoBackupEnabled = _storage!.getBool('auto_backup_enabled') ?? false;
     _autoBackupRetention = _storage!.getInt('auto_backup_retention') ?? 5;
+
+    if (_pinLockoutUntil != null && !isPinLockedOut) {
+      await _storage!.setPinLockoutUntil(null);
+      _pinLockoutUntil = null;
+    }
+
+    await _syncDailyReminderSchedule();
+
     debugPrint(
       'Settings loaded - PIN hash exists: $hasPin, Biometric: $_biometricEnabled, Lock enabled: $isLockEnabled',
     );
@@ -89,22 +125,36 @@ class SettingsProvider with ChangeNotifier {
   Future<void> setDailyReminderEnabled(bool value) async {
     _dailyReminderEnabled = value;
     await _storage?.setDailyReminderEnabled(value);
+    await _syncDailyReminderSchedule();
     notifyListeners();
   }
 
   Future<void> setDailyReminderTime(String value) async {
     _dailyReminderTime = value;
     await _storage?.setDailyReminderTime(value);
+    await _syncDailyReminderSchedule();
     notifyListeners();
   }
 
-  Future<void> setBiometricEnabled(bool value) async {
+  Future<bool> setBiometricEnabled(bool value) async {
+    if (value) {
+      final canCheck = await _localAuth.canCheckBiometrics;
+      final isDeviceSupported = await _localAuth.isDeviceSupported();
+      if (!canCheck || !isDeviceSupported) {
+        _biometricEnabled = false;
+        await _storage?.setBiometricEnabled(false);
+        notifyListeners();
+        return false;
+      }
+    }
+
     _biometricEnabled = value;
     await _storage?.setBiometricEnabled(value);
     debugPrint(
       'Biometric enabled set to: $value, Lock enabled: $isLockEnabled',
     );
     notifyListeners();
+    return true;
   }
 
   Future<void> setShowBalance(bool value) async {
@@ -114,27 +164,91 @@ class SettingsProvider with ChangeNotifier {
   }
 
   Future<void> setPin(String pin) async {
-    _pinHash = _hashPin(pin);
+    final salt = _generateSalt();
+    _pinSalt = salt;
+    _pinHash = _hashPin(pin, salt);
     await _storage?.setPinHash(_pinHash);
+    await _storage?.setPinSalt(_pinSalt);
+    await _storage?.setPinFailedAttempts(0);
+    _pinFailedAttempts = 0;
+    await clearPinLockout();
     debugPrint('PIN set, Lock enabled: $isLockEnabled');
     notifyListeners();
   }
 
   Future<void> removePin() async {
     _pinHash = null;
+    _pinSalt = null;
     await _storage?.setPinHash(null);
+    await _storage?.setPinSalt(null);
+    await _storage?.setPinFailedAttempts(0);
+    _pinFailedAttempts = 0;
+    await clearPinLockout();
     debugPrint('PIN removed, Lock enabled: $isLockEnabled');
     notifyListeners();
   }
 
   bool verifyPin(String pin) {
-    final inputHash = _hashPin(pin);
-    final isValid = _pinHash == inputHash;
+    if (_pinHash == null || _pinHash!.isEmpty) return false;
+
+    final isValid = (_pinSalt == null || _pinSalt!.isEmpty)
+        ? _constantTimeEquals(_pinHash!, _legacyHashPin(pin))
+        : _constantTimeEquals(_pinHash!, _hashPin(pin, _pinSalt!));
+
     debugPrint('PIN verification: $isValid');
     return isValid;
   }
 
-  String _hashPin(String pin) {
+  Future<void> setPinLockout(Duration duration) async {
+    _pinLockoutUntil = DateTime.now().add(duration);
+    await _storage?.setPinLockoutUntil(_pinLockoutUntil);
+    notifyListeners();
+  }
+
+  Future<void> clearPinLockout() async {
+    _pinLockoutUntil = null;
+    await _storage?.setPinLockoutUntil(null);
+  }
+
+  Future<void> recordFailedPinAttempt() async {
+    _pinFailedAttempts += 1;
+    await _storage?.setPinFailedAttempts(_pinFailedAttempts);
+
+    if (_pinFailedAttempts % _pinAttemptsBeforeLockout == 0) {
+      await setPinLockout(_lockoutDurationForAttempts(_pinFailedAttempts));
+      return;
+    }
+
+    notifyListeners();
+  }
+
+  Future<void> recordSuccessfulPinEntry() async {
+    _pinFailedAttempts = 0;
+    await _storage?.setPinFailedAttempts(0);
+    await clearPinLockout();
+    notifyListeners();
+  }
+
+  Future<void> refreshPinLockout() async {
+    if (_storage == null) return;
+    _pinLockoutUntil = _storage!.pinLockoutUntil;
+    _pinFailedAttempts = _storage!.pinFailedAttempts;
+    if (_pinLockoutUntil != null && !isPinLockedOut) {
+      await clearPinLockout();
+    }
+    notifyListeners();
+  }
+
+  Duration _lockoutDurationForAttempts(int failedAttempts) {
+    final strikeLevel = (failedAttempts / _pinAttemptsBeforeLockout).floor();
+
+    if (strikeLevel <= 1) return const Duration(seconds: 30);
+    if (strikeLevel == 2) return const Duration(minutes: 2);
+    if (strikeLevel == 3) return const Duration(minutes: 5);
+    return const Duration(minutes: 15);
+  }
+
+  String _legacyHashPin(String pin) {
     int hash = 0;
     for (int i = 0; i < pin.length; i++) {
       hash = 31 * hash + pin.codeUnitAt(i);
@@ -142,8 +256,51 @@ class SettingsProvider with ChangeNotifier {
     return hash.toString();
   }
 
+  String _hashPin(String pin, String salt) {
+    final seed = utf8.encode('$salt:$pin');
+    var digest = sha256.convert(seed).bytes;
+
+    // Slow hash to make offline brute force materially harder.
+    for (int i = 0; i < 12000; i++) {
+      digest = sha256.convert([...digest, ...seed]).bytes;
+    }
+
+    return base64Encode(digest);
+  }
+
+  String _generateSalt() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    return base64UrlEncode(bytes);
+  }
+
+  bool _constantTimeEquals(String a, String b) {
+    if (a.length != b.length) return false;
+    int result = 0;
+    for (int i = 0; i < a.length; i++) {
+      result |= a.codeUnitAt(i) ^ b.codeUnitAt(i);
+    }
+    return result == 0;
+  }
+
+  Future<void> _syncDailyReminderSchedule() async {
+    if (!_dailyReminderEnabled) {
+      await _notificationService.cancelNotification(0);
+      return;
+    }
+
+    final parts = _dailyReminderTime.split(':');
+    if (parts.length != 2) return;
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return;
+
+    await _notificationService.scheduleDailyReminder(hour: hour, minute: minute);
+  }
+
   Future<void> reload() async {
-    _loadSettings();
+    await _loadSettings();
     notifyListeners();
   }
 

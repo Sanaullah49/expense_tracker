@@ -647,7 +647,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           subtitle: 'Use fingerprint or face ID',
           value: settings.biometricEnabled,
           onChanged: (value) async {
-            await settings.setBiometricEnabled(value);
+            final success = await settings.setBiometricEnabled(value);
+            if (!success && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Biometric authentication is not available on this device',
+                  ),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
           },
         );
       },
@@ -899,18 +909,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _rateApp() {
-    // TODO: Implement app store rating
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Opening app store...')));
+    ).showSnackBar(
+      const SnackBar(
+        content: Text('App store rating is not configured for this build.'),
+      ),
+    );
   }
 
   void _shareApp() {
     SharePlus.instance.share(
       ShareParams(
         text:
-            'Check out Expense Tracker - The best app to manage your finances!\n\n'
-            'Download now: [App Store Link]',
+            'Check out Expense Tracker to manage your finances.\n\n'
+            'Find it in your app store by searching "Expense Tracker".',
         subject: 'Expense Tracker App',
       ),
     );
@@ -926,7 +939,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             'Your privacy is important to us. This app stores all your financial '
             'data locally on your device. We do not collect, transmit, or share '
             'any of your personal or financial information.\n\n'
-            'All data remains on your device and is encrypted for your security.\n\n'
+            'Data protection relies on your device-level security (screen lock, '
+            'OS storage protections). Backup/export files are plain JSON unless '
+            'you store them in an encrypted location.\n\n'
             'If you choose to backup your data, it will be stored in your chosen '
             'location (local storage or cloud service) under your control.',
           ),
@@ -973,13 +988,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       title: 'Delete All Data',
       message:
-          'Are you sure you want to delete ALL your data?\n\n'
+          'Are you sure you want to delete your financial records?\n\n'
           'This will permanently delete:\n'
           '• All transactions\n'
-          '• All accounts\n'
+          '• Most account records\n'
           '• All budgets\n'
-          '• All categories\n'
-          '• All settings\n\n'
+          '• Category usage history\n\n'
+          'This does not reset app preferences (theme, currency, lock settings).\n\n'
           'THIS ACTION CANNOT BE UNDONE!',
       confirmText: 'Delete Everything',
       isDangerous: true,
@@ -1074,12 +1089,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 await Future.wait(budgetFutures);
               }
 
-              final accountFutures = accountProvider.accounts
-                  .map((a) => accountProvider.deleteAccount(a.id))
-                  .toList();
+              final accountSnapshot = List.of(accountProvider.accounts);
+              if (accountSnapshot.length > 1) {
+                final preservedAccount =
+                    accountProvider.defaultAccount ?? accountSnapshot.first;
+                for (final account in accountSnapshot) {
+                  if (account.id == preservedAccount.id) continue;
+                  await accountProvider.deleteAccount(account.id);
+                }
+              }
 
-              if (accountFutures.isNotEmpty) {
-                await Future.wait(accountFutures);
+              if (accountProvider.accounts.isNotEmpty) {
+                final currentDefault =
+                    accountProvider.defaultAccount ??
+                    accountProvider.accounts.first;
+                final resetAccount = currentDefault.copyWith(
+                  balance: 0,
+                  initialBalance: 0,
+                  isDefault: true,
+                );
+                await accountProvider.updateAccount(resetAccount);
               }
 
               if (mounted) {

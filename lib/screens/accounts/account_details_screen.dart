@@ -6,6 +6,7 @@ import '../../core/constants/app_sizes.dart';
 import '../../data/models/account_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../../providers/account_provider.dart';
+import '../../providers/budget_provider.dart';
 import '../../providers/currency_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../widgets/cards/transaction_item.dart';
@@ -34,11 +35,12 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
     final currencyProvider = context.watch<CurrencyProvider>();
     final transactionProvider = context.watch<TransactionProvider>();
 
-    final transactions = transactionProvider.transactions
+    final transactions = transactionProvider.allTransactions
         .where(
           (t) => t.accountId == _account.id || t.toAccountId == _account.id,
         )
-        .toList();
+        .toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
 
     return Scaffold(
       appBar: AppBar(
@@ -413,9 +415,24 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
     );
 
     if (confirm == true && context.mounted) {
-      await context.read<AccountProvider>().deleteAccount(_account.id);
-      if (context.mounted) {
-        Navigator.pop(context);
+      final success = await context.read<AccountProvider>().deleteAccount(
+        _account.id,
+      );
+      if (success && context.mounted) {
+        await Future.wait([
+          context.read<TransactionProvider>().loadTransactions(),
+          context.read<BudgetProvider>().loadBudgets(),
+        ]);
+        if (context.mounted) {
+          Navigator.pop(context);
+        }
+      } else if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to delete account'),
+            backgroundColor: AppColors.error,
+          ),
+        );
       }
     }
   }

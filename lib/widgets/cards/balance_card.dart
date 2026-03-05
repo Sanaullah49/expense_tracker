@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_sizes.dart';
+import '../../data/models/transaction_model.dart';
 import '../../providers/currency_provider.dart';
 import '../../providers/transaction_provider.dart';
 
@@ -13,8 +14,13 @@ class BalanceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer2<TransactionProvider, CurrencyProvider>(
       builder: (context, transactionProvider, currencyProvider, _) {
-        final income = transactionProvider.totalIncome;
-        final expense = transactionProvider.totalExpense;
+        final allTransactions = transactionProvider.allTransactions;
+        final income = allTransactions
+            .where((t) => t.type == TransactionType.income)
+            .fold<double>(0, (sum, t) => sum + t.amount);
+        final expense = allTransactions
+            .where((t) => t.type == TransactionType.expense)
+            .fold<double>(0, (sum, t) => sum + t.amount);
         final balance = income - expense;
 
         return Container(

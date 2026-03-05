@@ -22,7 +22,12 @@ class StorageService {
   static const String keyUserId = 'user_id';
   static const String keyUserName = 'user_name';
   static const String keyUserEmail = 'user_email';
+  static const String keyUserAvatar = 'user_avatar';
+  static const String keyUserCreatedAt = 'user_created_at';
   static const String keyPinHash = 'pin_hash';
+  static const String keyPinSalt = 'pin_salt';
+  static const String keyPinFailedAttempts = 'pin_failed_attempts';
+  static const String keyPinLockoutUntil = 'pin_lockout_until';
   static const String keyBiometricEnabled = 'biometric_enabled';
   static const String keyNotificationsEnabled = 'notifications_enabled';
   static const String keyBudgetAlertsEnabled = 'budget_alerts_enabled';
@@ -126,6 +131,23 @@ class StorageService {
   String? get userEmail => getString(keyUserEmail);
   Future<void> setUserEmail(String value) => setString(keyUserEmail, value);
 
+  String? get userAvatar => getString(keyUserAvatar);
+  Future<void> setUserAvatar(String? value) async {
+    if (value != null && value.isNotEmpty) {
+      await setString(keyUserAvatar, value);
+    } else {
+      await remove(keyUserAvatar);
+    }
+  }
+
+  DateTime? get userCreatedAt {
+    final value = getString(keyUserCreatedAt);
+    return value != null ? DateTime.parse(value) : null;
+  }
+
+  Future<void> setUserCreatedAt(DateTime value) =>
+      setString(keyUserCreatedAt, value.toIso8601String());
+
   String? get pinHash => getString(keyPinHash);
   Future<void> setPinHash(String? value) async {
     if (value != null) {
@@ -133,6 +155,32 @@ class StorageService {
     } else {
       await remove(keyPinHash);
     }
+  }
+
+  String? get pinSalt => getString(keyPinSalt);
+  Future<void> setPinSalt(String? value) async {
+    if (value != null && value.isNotEmpty) {
+      await setString(keyPinSalt, value);
+    } else {
+      await remove(keyPinSalt);
+    }
+  }
+
+  int get pinFailedAttempts => getInt(keyPinFailedAttempts) ?? 0;
+  Future<void> setPinFailedAttempts(int value) =>
+      setInt(keyPinFailedAttempts, value);
+
+  DateTime? get pinLockoutUntil {
+    final value = getString(keyPinLockoutUntil);
+    return value != null ? DateTime.tryParse(value) : null;
+  }
+
+  Future<void> setPinLockoutUntil(DateTime? value) async {
+    if (value == null) {
+      await remove(keyPinLockoutUntil);
+      return;
+    }
+    await setString(keyPinLockoutUntil, value.toIso8601String());
   }
 
   bool get biometricEnabled => getBool(keyBiometricEnabled) ?? false;

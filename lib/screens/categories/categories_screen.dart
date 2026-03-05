@@ -5,7 +5,9 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_sizes.dart';
 import '../../data/models/category_model.dart';
+import '../../providers/budget_provider.dart';
 import '../../providers/category_provider.dart';
+import '../../providers/transaction_provider.dart';
 import 'add_category_screen.dart';
 
 class CategoriesScreen extends StatefulWidget {
@@ -198,7 +200,15 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     );
 
     if (confirm == true && mounted) {
-      await context.read<CategoryProvider>().deleteCategory(category.id);
+      final success = await context.read<CategoryProvider>().deleteCategory(
+        category.id,
+      );
+      if (success && mounted) {
+        await Future.wait([
+          context.read<TransactionProvider>().loadTransactions(),
+          context.read<BudgetProvider>().loadBudgets(),
+        ]);
+      }
     }
   }
 }

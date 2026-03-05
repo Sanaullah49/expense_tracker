@@ -41,4 +41,8 @@ class ThemeProvider with ChangeNotifier {
       await setThemeMode(ThemeMode.light);
     }
   }
+
+  Future<void> reload() async {
+    await _loadTheme();
+  }
 }
