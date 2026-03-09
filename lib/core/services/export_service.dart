@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:excel/excel.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -12,12 +11,40 @@ import 'package:share_plus/share_plus.dart';
 import '../../data/models/category_model.dart';
 import '../../data/models/transaction_model.dart';
 
+enum TransactionExportFormat { pdf, excel, csv }
+
 class ExportService {
+  static Future<void> exportTransactions({
+    required TransactionExportFormat format,
+    required List<TransactionModel> transactions,
+    required Map<String, CategoryModel> categories,
+    required String currencySymbol,
+    required String periodLabel,
+  }) {
+    switch (format) {
+      case TransactionExportFormat.pdf:
+        return exportToPDF(
+          transactions: transactions,
+          categories: categories,
+          currencySymbol: currencySymbol,
+          periodLabel: periodLabel,
+        );
+      case TransactionExportFormat.excel:
+        return exportToExcel(
+          transactions: transactions,
+          categories: categories,
+          currencySymbol: currencySymbol,
+        );
+      case TransactionExportFormat.csv:
+        return exportToCSV(transactions: transactions, categories: categories);
+    }
+  }
+
   static Future<void> exportToPDF({
     required List<TransactionModel> transactions,
     required Map<String, CategoryModel> categories,
     required String currencySymbol,
-    required DateTimeRange dateRange,
+    required String periodLabel,
   }) async {
     final pdf = pw.Document();
 
@@ -42,7 +69,7 @@ class ExportService {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
         theme: pw.ThemeData.withFont(base: ttf, bold: ttfBold),
-        header: (context) => _buildHeader(dateRange),
+        header: (context) => _buildHeader(periodLabel),
         footer: (context) => _buildFooter(context),
         build: (context) => [
           _buildSummarySection(totalIncome, totalExpense, currencySymbol),
@@ -66,7 +93,7 @@ class ExportService {
     );
   }
 
-  static pw.Widget _buildHeader(DateTimeRange dateRange) {
+  static pw.Widget _buildHeader(String periodLabel) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -104,7 +131,7 @@ class ExportService {
                   ),
                 ),
                 pw.Text(
-                  'Period: ${DateFormat('MMM d').format(dateRange.start)} - ${DateFormat('MMM d, yyyy').format(dateRange.end)}',
+                  'Period: $periodLabel',
                   style: const pw.TextStyle(
                     fontSize: 10,
                     color: PdfColors.grey600,

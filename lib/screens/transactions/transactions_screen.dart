@@ -4,9 +4,12 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_sizes.dart';
+import '../../core/services/export_service.dart';
+import '../../core/utils/date_range_presets.dart';
 import '../../data/models/transaction_model.dart';
 import '../../providers/account_provider.dart';
 import '../../providers/budget_provider.dart';
+import '../../providers/category_provider.dart';
 import '../../providers/currency_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../widgets/cards/transaction_item.dart';
@@ -61,6 +64,19 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   context.read<TransactionProvider>().setSearchQuery('');
                 }
               });
+            },
+          ),
+          Consumer<TransactionProvider>(
+            builder: (context, provider, _) {
+              if (!provider.hasFilters || provider.transactions.isEmpty) {
+                return const SizedBox.shrink();
+              }
+
+              return IconButton(
+                icon: const Icon(Icons.file_download_outlined),
+                tooltip: 'Export filtered results',
+                onPressed: _showFilteredExportOptions,
+              );
             },
           ),
           IconButton(
@@ -211,6 +227,91 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       builder: (_) => const _FilterSheet(),
     );
   }
+
+  Future<void> _showFilteredExportOptions() async {
+    final format = await showModalBottomSheet<TransactionExportFormat>(
+      context: context,
+      builder: (_) => const _FilteredExportSheet(),
+    );
+
+    if (format == null || !mounted) return;
+    await _exportFilteredTransactions(format);
+  }
+
+  Future<void> _exportFilteredTransactions(
+    TransactionExportFormat format,
+  ) async {
+    final transactionProvider = context.read<TransactionProvider>();
+    final transactions = List<TransactionModel>.from(
+      transactionProvider.transactions,
+    );
+
+    if (transactions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No filtered transactions available to export'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final categoryProvider = context.read<CategoryProvider>();
+      final currencyProvider = context.read<CurrencyProvider>();
+      final categories = {for (var c in categoryProvider.categories) c.id: c};
+      final dateRange =
+          transactionProvider.startDate != null &&
+              transactionProvider.endDate != null
+          ? DateTimeRange(
+              start: transactionProvider.startDate!,
+              end: transactionProvider.endDate!,
+            )
+          : null;
+
+      await ExportService.exportTransactions(
+        format: format,
+        transactions: transactions,
+        categories: categories,
+        currencySymbol: currencyProvider.currencySymbol,
+        periodLabel: DateRangePresetHelper.describeSelection(
+          transactionProvider.selectedDateRangePreset,
+          dateRange,
+        ),
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Filtered transactions exported ${_exportFormatLabel(format)}',
+            ),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Export failed: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  String _exportFormatLabel(TransactionExportFormat format) {
+    switch (format) {
+      case TransactionExportFormat.pdf:
+        return 'as PDF';
+      case TransactionExportFormat.excel:
+        return 'as Excel';
+      case TransactionExportFormat.csv:
+        return 'as CSV';
+    }
+  }
 }
 
 class _FilterSheet extends StatefulWidget {
@@ -222,15 +323,23 @@ class _FilterSheet extends StatefulWidget {
 
 class _FilterSheetState extends State<_FilterSheet> {
   TransactionType? _selectedType;
-  DateTimeRange? _dateRange;
+  TransactionDateRangePreset _selectedDateRangePreset =
+      TransactionDateRangePreset.allData;
+  DateTimeRange? _customDateRange;
+
+  DateTimeRange? get _selectedDateRange =>
+      _selectedDateRangePreset == TransactionDateRangePreset.custom
+      ? _customDateRange
+      : DateRangePresetHelper.resolveRange(_selectedDateRangePreset);
 
   @override
   void initState() {
     super.initState();
     final provider = context.read<TransactionProvider>();
     _selectedType = provider.selectedType;
+    _selectedDateRangePreset = provider.selectedDateRangePreset;
     if (provider.startDate != null && provider.endDate != null) {
-      _dateRange = DateTimeRange(
+      _customDateRange = DateTimeRange(
         start: provider.startDate!,
         end: provider.endDate!,
       );
@@ -239,132 +348,200 @@ class _FilterSheetState extends State<_FilterSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSizes.lg),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Filter Transactions',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              TextButton(
-                onPressed: () {
-                  context.read<TransactionProvider>().clearFilters();
-                  Navigator.pop(context);
-                },
-                child: const Text('Clear All'),
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          AppSizes.lg,
+          AppSizes.lg,
+          AppSizes.lg,
+          AppSizes.lg + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Filter Transactions',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                TextButton(
+                  onPressed: () {
+                    context.read<TransactionProvider>().clearFilters();
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Clear All'),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSizes.lg),
+
+            const Text('Type', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: AppSizes.sm),
+            Wrap(
+              spacing: AppSizes.sm,
+              children: [
+                _buildFilterChip(
+                  label: 'All',
+                  selected: _selectedType == null,
+                  onSelected: (_) => setState(() => _selectedType = null),
+                ),
+                _buildFilterChip(
+                  label: 'Income',
+                  selected: _selectedType == TransactionType.income,
+                  onSelected: (_) =>
+                      setState(() => _selectedType = TransactionType.income),
+                  color: AppColors.income,
+                ),
+                _buildFilterChip(
+                  label: 'Expense',
+                  selected: _selectedType == TransactionType.expense,
+                  onSelected: (_) =>
+                      setState(() => _selectedType = TransactionType.expense),
+                  color: AppColors.expense,
+                ),
+                _buildFilterChip(
+                  label: 'Transfer',
+                  selected: _selectedType == TransactionType.transfer,
+                  onSelected: (_) =>
+                      setState(() => _selectedType = TransactionType.transfer),
+                  color: AppColors.transfer,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSizes.lg),
+
+            const Text(
+              'Date Range',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: AppSizes.sm),
+            Wrap(
+              spacing: AppSizes.sm,
+              runSpacing: AppSizes.sm,
+              children: DateRangePresetHelper.presets.map((preset) {
+                final isSelected = _selectedDateRangePreset == preset;
+                return FilterChip(
+                  label: Text(DateRangePresetHelper.chipLabel(preset)),
+                  selected: isSelected,
+                  onSelected: (_) {
+                    setState(() => _selectedDateRangePreset = preset);
+                  },
+                  selectedColor: AppColors.primary.withValues(alpha: 0.18),
+                  checkmarkColor: AppColors.primary,
+                  labelStyle: TextStyle(
+                    color: isSelected ? AppColors.primary : null,
+                    fontWeight: isSelected ? FontWeight.w600 : null,
+                  ),
+                );
+              }).toList(),
+            ),
+            if (_selectedDateRangePreset ==
+                TransactionDateRangePreset.custom) ...[
+              const SizedBox(height: AppSizes.md),
+              InkWell(
+                onTap: _pickCustomRange,
+                borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                child: Container(
+                  padding: const EdgeInsets.all(AppSizes.md),
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
+                    border: Border.all(color: theme.dividerColor),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.date_range),
+                      const SizedBox(width: AppSizes.sm),
+                      Expanded(
+                        child: Text(
+                          _customDateRange == null
+                              ? 'Select custom range'
+                              : DateRangePresetHelper.describeSelection(
+                                  TransactionDateRangePreset.custom,
+                                  _customDateRange,
+                                ),
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right,
+                        color: scheme.onSurface.withValues(alpha: 0.45),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
-          ),
-          const SizedBox(height: AppSizes.lg),
-
-          const Text('Type', style: TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: AppSizes.sm),
-          Wrap(
-            spacing: AppSizes.sm,
-            children: [
-              _buildFilterChip(
-                label: 'All',
-                selected: _selectedType == null,
-                onSelected: (_) => setState(() => _selectedType = null),
-              ),
-              _buildFilterChip(
-                label: 'Income',
-                selected: _selectedType == TransactionType.income,
-                onSelected: (_) =>
-                    setState(() => _selectedType = TransactionType.income),
-                color: AppColors.income,
-              ),
-              _buildFilterChip(
-                label: 'Expense',
-                selected: _selectedType == TransactionType.expense,
-                onSelected: (_) =>
-                    setState(() => _selectedType = TransactionType.expense),
-                color: AppColors.expense,
-              ),
-              _buildFilterChip(
-                label: 'Transfer',
-                selected: _selectedType == TransactionType.transfer,
-                onSelected: (_) =>
-                    setState(() => _selectedType = TransactionType.transfer),
-                color: AppColors.transfer,
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSizes.lg),
-
-          const Text(
-            'Date Range',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: AppSizes.sm),
-          InkWell(
-            onTap: () async {
-              final range = await showDateRangePicker(
-                context: context,
-                firstDate: DateTime(2020),
-                lastDate: DateTime.now(),
-                initialDateRange: _dateRange,
-              );
-              if (range != null) {
-                setState(() => _dateRange = range);
-              }
-            },
-            child: Container(
+            const SizedBox(height: AppSizes.md),
+            Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(AppSizes.md),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                border: Border.all(color: Theme.of(context).dividerColor),
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
                 borderRadius: BorderRadius.circular(AppSizes.radiusMd),
               ),
-              child: Row(
-                children: [
-                  const Icon(Icons.date_range),
-                  const SizedBox(width: AppSizes.sm),
-                  Text(
-                    _dateRange != null
-                        ? '${DateFormat('MMM d').format(_dateRange!.start)} - ${DateFormat('MMM d').format(_dateRange!.end)}'
-                        : 'Select date range',
-                  ),
-                  if (_dateRange != null) ...[
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: () => setState(() => _dateRange = null),
-                      child: const Icon(Icons.close, size: 18),
-                    ),
-                  ],
-                ],
+              child: Text(
+                'Selected: ${DateRangePresetHelper.describeSelection(_selectedDateRangePreset, _selectedDateRange)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: scheme.onSurface.withValues(alpha: 0.8),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: AppSizes.xl),
+            const SizedBox(height: AppSizes.xl),
 
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                final provider = context.read<TransactionProvider>();
-                provider.setType(_selectedType);
-                if (_dateRange != null) {
-                  provider.setDateRange(_dateRange!.start, _dateRange!.end);
-                } else {
-                  provider.clearFilters();
-                  provider.setType(_selectedType);
-                }
-                Navigator.pop(context);
-              },
-              child: const Text('Apply Filters'),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  if (_selectedDateRangePreset ==
+                          TransactionDateRangePreset.custom &&
+                      _customDateRange == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please select a custom date range'),
+                      ),
+                    );
+                    return;
+                  }
+
+                  final provider = context.read<TransactionProvider>();
+                  provider.applyFilters(
+                    type: _selectedType,
+                    dateRange: _selectedDateRange,
+                    dateRangePreset: _selectedDateRangePreset,
+                  );
+                  Navigator.pop(context);
+                },
+                child: const Text('Apply Filters'),
+              ),
             ),
-          ),
-          const SizedBox(height: AppSizes.md),
-        ],
+            const SizedBox(height: AppSizes.md),
+          ],
+        ),
       ),
     );
+  }
+
+  Future<void> _pickCustomRange() async {
+    final initialRange =
+        _customDateRange ??
+        DateRangePresetHelper.resolveRange(TransactionDateRangePreset.oneWeek)!;
+
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      initialDateRange: initialRange,
+    );
+
+    if (range != null) {
+      setState(() => _customDateRange = range);
+    }
   }
 
   Widget _buildFilterChip({
@@ -382,6 +559,47 @@ class _FilterSheetState extends State<_FilterSheet> {
       labelStyle: TextStyle(
         color: selected ? (color ?? AppColors.primary) : null,
         fontWeight: selected ? FontWeight.w600 : null,
+      ),
+    );
+  }
+}
+
+class _FilteredExportSheet extends StatelessWidget {
+  const _FilteredExportSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(AppSizes.md),
+            child: Text(
+              'Export Filtered Transactions',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
+            title: const Text('Export as PDF'),
+            subtitle: const Text('Generate a PDF report'),
+            onTap: () => Navigator.pop(context, TransactionExportFormat.pdf),
+          ),
+          ListTile(
+            leading: const Icon(Icons.table_chart, color: Colors.green),
+            title: const Text('Export as Excel'),
+            subtitle: const Text('Generate an Excel spreadsheet'),
+            onTap: () => Navigator.pop(context, TransactionExportFormat.excel),
+          ),
+          ListTile(
+            leading: const Icon(Icons.code, color: Colors.blue),
+            title: const Text('Export as CSV'),
+            subtitle: const Text('Generate a CSV file'),
+            onTap: () => Navigator.pop(context, TransactionExportFormat.csv),
+          ),
+          const SizedBox(height: AppSizes.md),
+        ],
       ),
     );
   }

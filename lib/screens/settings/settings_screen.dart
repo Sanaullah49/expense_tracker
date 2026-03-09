@@ -7,6 +7,8 @@ import '../../app.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_sizes.dart';
 import '../../core/services/export_service.dart';
+import '../../core/utils/date_range_presets.dart';
+import '../../data/models/transaction_model.dart';
 import '../../providers/account_provider.dart';
 import '../../providers/budget_provider.dart';
 import '../../providers/category_provider.dart';
@@ -484,60 +486,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return _buildSettingsTile(
       icon: Icons.file_download_outlined,
       title: 'Export Data',
-      subtitle: 'Export as PDF, Excel, or CSV',
+      subtitle: 'Choose a time range and export format',
       onTap: _showExportOptions,
     );
   }
 
-  void _showExportOptions() {
-    showModalBottomSheet(
+  Future<void> _showExportOptions() async {
+    final selection = await showModalBottomSheet<_ExportSelection>(
       context: context,
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(AppSizes.md),
-              child: Text(
-                'Export Data',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
-              title: const Text('Export as PDF'),
-              subtitle: const Text('Generate a PDF report'),
-              onTap: () {
-                Navigator.pop(context);
-                _exportToPDF();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.table_chart, color: Colors.green),
-              title: const Text('Export as Excel'),
-              subtitle: const Text('Generate an Excel spreadsheet'),
-              onTap: () {
-                Navigator.pop(context);
-                _exportToExcel();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.code, color: Colors.blue),
-              title: const Text('Export as CSV'),
-              subtitle: const Text('Generate a CSV file'),
-              onTap: () {
-                Navigator.pop(context);
-                _exportToCSV();
-              },
-            ),
-            const SizedBox(height: AppSizes.md),
-          ],
-        ),
-      ),
+      isScrollControlled: true,
+      builder: (_) => const _SettingsExportSheet(),
     );
+    if (selection == null || !mounted) return;
+    await _exportTransactions(selection);
   }
 
-  Future<void> _exportToPDF() async {
+  Future<void> _exportTransactions(_ExportSelection selection) async {
     setState(() => _isLoading = true);
 
     try {
@@ -545,26 +509,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final categoryProvider = context.read<CategoryProvider>();
       final currencyProvider = context.read<CurrencyProvider>();
 
-      final transactions = transactionProvider.transactions;
-      final categories = {for (var c in categoryProvider.categories) c.id: c};
+      final transactions =
+          selection.preset == TransactionDateRangePreset.allData ||
+              selection.dateRange == null
+          ? List<TransactionModel>.from(transactionProvider.allTransactions)
+          : transactionProvider.getTransactionsForDateRange(
+              selection.dateRange!.start,
+              selection.dateRange!.end,
+            );
 
-      final now = DateTime.now();
-      final dateRange = DateTimeRange(
-        start: DateTime(now.year, now.month, 1),
-        end: now,
+      if (transactions.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No transactions found for the selected range'),
+              backgroundColor: AppColors.warning,
+            ),
+          );
+        }
+        return;
+      }
+
+      final categories = {for (var c in categoryProvider.categories) c.id: c};
+      final periodLabel = DateRangePresetHelper.describeSelection(
+        selection.preset,
+        selection.dateRange,
       );
 
-      await ExportService.exportToPDF(
+      await ExportService.exportTransactions(
+        format: selection.format,
         transactions: transactions,
         categories: categories,
         currencySymbol: currencyProvider.currencySymbol,
-        dateRange: dateRange,
+        periodLabel: periodLabel,
       );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Exported to PDF successfully'),
+          SnackBar(
+            content: Text(
+              'Exported ${_exportFormatLabel(selection.format)} successfully',
+            ),
             backgroundColor: AppColors.success,
           ),
         );
@@ -578,85 +563,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
-
-    setState(() => _isLoading = false);
   }
 
-  Future<void> _exportToExcel() async {
-    setState(() => _isLoading = true);
-
-    try {
-      final transactionProvider = context.read<TransactionProvider>();
-      final categoryProvider = context.read<CategoryProvider>();
-      final currencyProvider = context.read<CurrencyProvider>();
-
-      final transactions = transactionProvider.transactions;
-      final categories = {for (var c in categoryProvider.categories) c.id: c};
-
-      await ExportService.exportToExcel(
-        transactions: transactions,
-        categories: categories,
-        currencySymbol: currencyProvider.currencySymbol,
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Exported to Excel successfully'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Export failed: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
+  String _exportFormatLabel(TransactionExportFormat format) {
+    switch (format) {
+      case TransactionExportFormat.pdf:
+        return 'as PDF';
+      case TransactionExportFormat.excel:
+        return 'as Excel';
+      case TransactionExportFormat.csv:
+        return 'as CSV';
     }
-
-    setState(() => _isLoading = false);
-  }
-
-  Future<void> _exportToCSV() async {
-    setState(() => _isLoading = true);
-
-    try {
-      final transactionProvider = context.read<TransactionProvider>();
-      final categoryProvider = context.read<CategoryProvider>();
-
-      final transactions = transactionProvider.transactions;
-      final categories = {for (var c in categoryProvider.categories) c.id: c};
-
-      await ExportService.exportToCSV(
-        transactions: transactions,
-        categories: categories,
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Exported to CSV successfully'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Export failed: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-
-    setState(() => _isLoading = false);
   }
 
   Widget _buildBiometricSettings() {
@@ -903,6 +825,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               value: settings.dailyReminderEnabled,
               onChanged: (value) async {
                 await settings.setDailyReminderEnabled(value);
+                if (!context.mounted) return;
+
+                if (value && !settings.dailyReminderEnabled) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Daily reminders could not be scheduled on this device.',
+                      ),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
               },
             ),
             if (settings.dailyReminderEnabled)
@@ -935,14 +869,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
           '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
       await settings.setDailyReminderTime(formatted);
 
-      if (mounted) {
+      if (!mounted) return;
+
+      if (settings.dailyReminderEnabled &&
+          settings.dailyReminderTime != formatted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Reminder set for ${time.format(context)}'),
-            backgroundColor: AppColors.success,
+          const SnackBar(
+            content: Text('Reminder time could not be updated on this device.'),
+            backgroundColor: AppColors.error,
           ),
         );
+        return;
       }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Reminder set for ${time.format(context)}'),
+          backgroundColor: AppColors.success,
+        ),
+      );
     }
   }
 
@@ -1178,6 +1123,215 @@ class _SettingsScreenState extends State<SettingsScreen> {
           setState(() => _isLoading = false);
         }
       }
+    }
+  }
+}
+
+class _ExportSelection {
+  final TransactionExportFormat format;
+  final TransactionDateRangePreset preset;
+  final DateTimeRange? dateRange;
+
+  const _ExportSelection({
+    required this.format,
+    required this.preset,
+    required this.dateRange,
+  });
+}
+
+class _SettingsExportSheet extends StatefulWidget {
+  const _SettingsExportSheet();
+
+  @override
+  State<_SettingsExportSheet> createState() => _SettingsExportSheetState();
+}
+
+class _SettingsExportSheetState extends State<_SettingsExportSheet> {
+  TransactionDateRangePreset _selectedPreset =
+      TransactionDateRangePreset.oneMonth;
+  DateTimeRange? _customRange;
+
+  DateTimeRange? get _selectedRange =>
+      _selectedPreset == TransactionDateRangePreset.custom
+      ? _customRange
+      : DateRangePresetHelper.resolveRange(_selectedPreset);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          AppSizes.lg,
+          AppSizes.lg,
+          AppSizes.lg,
+          AppSizes.lg + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Export Data',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: AppSizes.xs),
+            Text(
+              'Choose a date range, then select an export format.',
+              style: TextStyle(color: scheme.onSurface.withValues(alpha: 0.7)),
+            ),
+            const SizedBox(height: AppSizes.lg),
+            Wrap(
+              spacing: AppSizes.sm,
+              runSpacing: AppSizes.sm,
+              children: DateRangePresetHelper.presets.map((preset) {
+                final isSelected = _selectedPreset == preset;
+                return FilterChip(
+                  label: Text(DateRangePresetHelper.chipLabel(preset)),
+                  selected: isSelected,
+                  onSelected: (_) => setState(() => _selectedPreset = preset),
+                  selectedColor: AppColors.primary.withValues(alpha: 0.18),
+                  checkmarkColor: AppColors.primary,
+                  labelStyle: TextStyle(
+                    color: isSelected ? AppColors.primary : null,
+                    fontWeight: isSelected ? FontWeight.w600 : null,
+                  ),
+                );
+              }).toList(),
+            ),
+            if (_selectedPreset == TransactionDateRangePreset.custom) ...[
+              const SizedBox(height: AppSizes.md),
+              InkWell(
+                onTap: _pickCustomRange,
+                borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                child: Container(
+                  padding: const EdgeInsets.all(AppSizes.md),
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
+                    border: Border.all(color: theme.dividerColor),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.date_range),
+                      const SizedBox(width: AppSizes.sm),
+                      Expanded(
+                        child: Text(
+                          _customRange == null
+                              ? 'Select custom range'
+                              : DateRangePresetHelper.describeSelection(
+                                  TransactionDateRangePreset.custom,
+                                  _customRange,
+                                ),
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right,
+                        color: scheme.onSurface.withValues(alpha: 0.45),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: AppSizes.md),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSizes.md),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+              ),
+              child: Text(
+                'Selected: ${DateRangePresetHelper.describeSelection(_selectedPreset, _selectedRange)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: scheme.onSurface.withValues(alpha: 0.8),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSizes.lg),
+            const Text(
+              'Export Format',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: AppSizes.sm),
+            _buildFormatTile(
+              format: TransactionExportFormat.pdf,
+              icon: Icons.picture_as_pdf,
+              color: Colors.red,
+              title: 'Export as PDF',
+              subtitle: 'Generate a report document',
+            ),
+            _buildFormatTile(
+              format: TransactionExportFormat.excel,
+              icon: Icons.table_chart,
+              color: Colors.green,
+              title: 'Export as Excel',
+              subtitle: 'Generate a spreadsheet file',
+            ),
+            _buildFormatTile(
+              format: TransactionExportFormat.csv,
+              icon: Icons.code,
+              color: Colors.blue,
+              title: 'Export as CSV',
+              subtitle: 'Generate a plain data file',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFormatTile({
+    required TransactionExportFormat format,
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+  }) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: color),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      onTap: () {
+        if (_selectedPreset == TransactionDateRangePreset.custom &&
+            _customRange == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please select a custom date range')),
+          );
+          return;
+        }
+
+        Navigator.pop(
+          context,
+          _ExportSelection(
+            format: format,
+            preset: _selectedPreset,
+            dateRange: _selectedRange,
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickCustomRange() async {
+    final initialRange =
+        _customRange ??
+        DateRangePresetHelper.resolveRange(TransactionDateRangePreset.oneWeek)!;
+
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      initialDateRange: initialRange,
+    );
+
+    if (range != null) {
+      setState(() => _customRange = range);
     }
   }
 }

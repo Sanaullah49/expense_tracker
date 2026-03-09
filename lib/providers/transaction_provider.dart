@@ -1,6 +1,7 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
+import '../core/utils/date_range_presets.dart';
 import '../data/database/database_helper.dart';
 import '../data/models/transaction_model.dart';
 
@@ -15,6 +16,8 @@ class TransactionProvider with ChangeNotifier {
 
   DateTime? _startDate;
   DateTime? _endDate;
+  TransactionDateRangePreset _selectedDateRangePreset =
+      TransactionDateRangePreset.allData;
   String? _selectedCategoryId;
   String? _selectedAccountId;
   TransactionType? _selectedType;
@@ -28,6 +31,8 @@ class TransactionProvider with ChangeNotifier {
   String? get error => _error;
   DateTime? get startDate => _startDate;
   DateTime? get endDate => _endDate;
+  TransactionDateRangePreset get selectedDateRangePreset =>
+      _selectedDateRangePreset;
   String? get selectedCategoryId => _selectedCategoryId;
   String? get selectedAccountId => _selectedAccountId;
   TransactionType? get selectedType => _selectedType;
@@ -157,9 +162,35 @@ class TransactionProvider with ChangeNotifier {
     }
   }
 
-  void setDateRange(DateTime start, DateTime end) {
+  void setDateRange(
+    DateTime start,
+    DateTime end, {
+    TransactionDateRangePreset preset = TransactionDateRangePreset.custom,
+  }) {
     _startDate = _normalizeStartDate(start);
     _endDate = _normalizeEndDate(end);
+    _selectedDateRangePreset = preset;
+    _applyFiltersAndSort();
+    notifyListeners();
+  }
+
+  void applyFilters({
+    TransactionType? type,
+    DateTimeRange? dateRange,
+    TransactionDateRangePreset dateRangePreset =
+        TransactionDateRangePreset.allData,
+  }) {
+    _selectedType = type;
+    _selectedDateRangePreset = dateRangePreset;
+
+    if (dateRange != null) {
+      _startDate = _normalizeStartDate(dateRange.start);
+      _endDate = _normalizeEndDate(dateRange.end);
+    } else {
+      _startDate = null;
+      _endDate = null;
+    }
+
     _applyFiltersAndSort();
     notifyListeners();
   }
@@ -197,6 +228,7 @@ class TransactionProvider with ChangeNotifier {
   void clearFilters() {
     _startDate = null;
     _endDate = null;
+    _selectedDateRangePreset = TransactionDateRangePreset.allData;
     _selectedCategoryId = null;
     _selectedAccountId = null;
     _selectedType = null;
@@ -319,7 +351,8 @@ class TransactionProvider with ChangeNotifier {
   }
 
   DateTime _normalizeEndDate(DateTime date) {
-    final hasTime = date.hour != 0 ||
+    final hasTime =
+        date.hour != 0 ||
         date.minute != 0 ||
         date.second != 0 ||
         date.millisecond != 0 ||

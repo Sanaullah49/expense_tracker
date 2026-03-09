@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/services.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -78,24 +79,42 @@ class NotificationService {
     required int hour,
     required int minute,
   }) async {
-    await _notifications.zonedSchedule(
-      0,
-      'Daily Expense Reminder',
-      'Don\'t forget to log your expenses for today!',
-      _nextInstanceOfTime(hour, minute),
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          'daily_reminder',
-          'Daily Reminders',
-          channelDescription: 'Daily expense tracking reminders',
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
-        ),
-        iOS: const DarwinNotificationDetails(),
+    final scheduledTime = _nextInstanceOfTime(hour, minute);
+    final details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        'daily_reminder',
+        'Daily Reminders',
+        channelDescription: 'Daily expense tracking reminders',
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
+      iOS: const DarwinNotificationDetails(),
     );
+
+    try {
+      await _notifications.zonedSchedule(
+        0,
+        'Daily Expense Reminder',
+        'Don\'t forget to log your expenses for today!',
+        scheduledTime,
+        details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+    } on PlatformException catch (e) {
+      if (e.code != 'exact_alarms_not_permitted') rethrow;
+
+      // Some Android builds still surface this error even for recurring reminders.
+      await _notifications.zonedSchedule(
+        0,
+        'Daily Expense Reminder',
+        'Don\'t forget to log your expenses for today!',
+        scheduledTime,
+        details,
+        androidScheduleMode: AndroidScheduleMode.inexact,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+    }
   }
 
   tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {

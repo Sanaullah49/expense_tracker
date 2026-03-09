@@ -61,10 +61,15 @@ class SettingsProvider with ChangeNotifier {
     final usedAttempts = _pinFailedAttempts % _pinAttemptsBeforeLockout;
     return _pinAttemptsBeforeLockout - usedAttempts;
   }
+
   int get pinLockoutSecondsRemaining {
     if (!isPinLockedOut) return 0;
-    return _pinLockoutUntil!.difference(DateTime.now()).inSeconds.clamp(0, 9999);
+    return _pinLockoutUntil!
+        .difference(DateTime.now())
+        .inSeconds
+        .clamp(0, 9999);
   }
+
   DateTime? get pinLockoutUntil => _pinLockoutUntil;
 
   SettingsProvider() {
@@ -135,16 +140,27 @@ class SettingsProvider with ChangeNotifier {
   }
 
   Future<void> setDailyReminderEnabled(bool value) async {
+    final previousValue = _dailyReminderEnabled;
     _dailyReminderEnabled = value;
     await _storage?.setDailyReminderEnabled(value);
-    await _syncDailyReminderSchedule();
+    final scheduledSuccessfully = await _syncDailyReminderSchedule();
+    if (value && !scheduledSuccessfully) {
+      _dailyReminderEnabled = previousValue;
+      await _storage?.setDailyReminderEnabled(previousValue);
+    }
     notifyListeners();
   }
 
   Future<void> setDailyReminderTime(String value) async {
+    final previousValue = _dailyReminderTime;
     _dailyReminderTime = value;
     await _storage?.setDailyReminderTime(value);
-    await _syncDailyReminderSchedule();
+    final scheduledSuccessfully = await _syncDailyReminderSchedule();
+    if (_dailyReminderEnabled && !scheduledSuccessfully) {
+      _dailyReminderTime = previousValue;
+      await _storage?.setDailyReminderTime(previousValue);
+      await _syncDailyReminderSchedule();
+    }
     notifyListeners();
   }
 
@@ -323,20 +339,29 @@ class SettingsProvider with ChangeNotifier {
     return result == 0;
   }
 
-  Future<void> _syncDailyReminderSchedule() async {
+  Future<bool> _syncDailyReminderSchedule() async {
     if (!_dailyReminderEnabled) {
       await _notificationService.cancelNotification(0);
-      return;
+      return true;
     }
 
     final parts = _dailyReminderTime.split(':');
-    if (parts.length != 2) return;
+    if (parts.length != 2) return false;
 
     final hour = int.tryParse(parts[0]);
     final minute = int.tryParse(parts[1]);
-    if (hour == null || minute == null) return;
+    if (hour == null || minute == null) return false;
 
-    await _notificationService.scheduleDailyReminder(hour: hour, minute: minute);
+    try {
+      await _notificationService.scheduleDailyReminder(
+        hour: hour,
+        minute: minute,
+      );
+      return true;
+    } catch (e) {
+      debugPrint('Failed to schedule daily reminder: $e');
+      return false;
+    }
   }
 
   Future<void> reload() async {
