@@ -23,6 +23,8 @@ class AccountPickerDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer2<AccountProvider, CurrencyProvider>(
       builder: (context, accountProvider, currencyProvider, _) {
+        final theme = Theme.of(context);
+        final scheme = theme.colorScheme;
         final accounts = accountProvider.accounts
             .where((a) => a.id != excludeAccount?.id)
             .toList();
@@ -41,7 +43,7 @@ class AccountPickerDialog extends StatelessWidget {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: scheme.outline.withValues(alpha: 0.35),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -76,12 +78,14 @@ class AccountPickerDialog extends StatelessWidget {
                             Icon(
                               Icons.account_balance_wallet_outlined,
                               size: 64,
-                              color: Colors.grey.shade400,
+                              color: scheme.onSurface.withValues(alpha: 0.45),
                             ),
                             const SizedBox(height: 16),
                             Text(
                               'No accounts',
-                              style: TextStyle(color: Colors.grey.shade600),
+                              style: TextStyle(
+                                color: scheme.onSurface.withValues(alpha: 0.7),
+                              ),
                             ),
                             const SizedBox(height: 16),
                             TextButton.icon(

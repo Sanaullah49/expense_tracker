@@ -48,6 +48,8 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit Category' : 'Add Category'),
@@ -126,7 +128,8 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
               child: Container(
                 padding: const EdgeInsets.all(AppSizes.md),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
+                  color: scheme.surface,
+                  border: Border.all(color: theme.dividerColor),
                   borderRadius: BorderRadius.circular(AppSizes.radiusMd),
                 ),
                 child: Row(
@@ -147,7 +150,10 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
                         style: TextStyle(fontWeight: FontWeight.w500),
                       ),
                     ),
-                    Icon(Icons.chevron_right, color: Colors.grey.shade400),
+                    Icon(
+                      Icons.chevron_right,
+                      color: scheme.onSurface.withValues(alpha: 0.45),
+                    ),
                   ],
                 ),
               ),

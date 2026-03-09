@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants/icon_catalog.dart';
+
 class CategoryModel {
   final String id;
   final String name;
@@ -36,15 +38,16 @@ class CategoryModel {
   }
 
   factory CategoryModel.fromMap(Map<String, dynamic> map) {
+    final isIncome = map['isIncome'] == 1;
     return CategoryModel(
       id: map['id'],
       name: map['name'],
-      icon: IconData(
+      icon: AppIconCatalog.fromCodePoint(
         map['iconCodePoint'],
-        fontFamily: map['iconFontFamily'] ?? 'MaterialIcons',
+        fallback: isIncome ? Icons.work : Icons.category,
       ),
       color: Color(map['color']),
-      isIncome: map['isIncome'] == 1,
+      isIncome: isIncome,
       isDefault: map['isDefault'] == 1,
       sortOrder: map['sortOrder'] ?? 0,
       createdAt: DateTime.parse(map['createdAt']),

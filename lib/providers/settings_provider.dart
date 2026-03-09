@@ -8,6 +8,13 @@ import 'package:local_auth/local_auth.dart';
 import '../core/services/notification_service.dart';
 import '../core/services/storage_service.dart';
 
+enum BiometricPreferenceResult {
+  enabled,
+  disabled,
+  unavailable,
+  authenticationFailed,
+}
+
 class SettingsProvider with ChangeNotifier {
   StorageService? _storage;
   bool _isInitialized = false;
@@ -24,7 +31,9 @@ class SettingsProvider with ChangeNotifier {
   String? _pinSalt;
   int _pinFailedAttempts = 0;
   DateTime? _pinLockoutUntil;
+  DateTime? _lastUnlockVerifiedAt;
   static const int _pinAttemptsBeforeLockout = 5;
+  static const Duration _unlockGracePeriod = Duration(seconds: 3);
 
   bool _autoBackupEnabled = false;
   int _autoBackupRetention = 5;
@@ -41,6 +50,9 @@ class SettingsProvider with ChangeNotifier {
   bool get showBalance => _showBalance;
   bool get hasPin => _pinHash != null && _pinHash!.isNotEmpty;
   bool get isLockEnabled => hasPin || _biometricEnabled;
+  bool get shouldSuppressImmediateRelock =>
+      _lastUnlockVerifiedAt != null &&
+      DateTime.now().difference(_lastUnlockVerifiedAt!) < _unlockGracePeriod;
   int get pinFailedAttempts => _pinFailedAttempts;
   bool get isPinLockedOut =>
       _pinLockoutUntil != null && DateTime.now().isBefore(_pinLockoutUntil!);
@@ -136,7 +148,7 @@ class SettingsProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> setBiometricEnabled(bool value) async {
+  Future<BiometricPreferenceResult> setBiometricEnabled(bool value) async {
     if (value) {
       final canCheck = await _localAuth.canCheckBiometrics;
       final isDeviceSupported = await _localAuth.isDeviceSupported();
@@ -144,17 +156,38 @@ class SettingsProvider with ChangeNotifier {
         _biometricEnabled = false;
         await _storage?.setBiometricEnabled(false);
         notifyListeners();
-        return false;
+        return BiometricPreferenceResult.unavailable;
+      }
+
+      try {
+        final didAuthenticate = await _localAuth.authenticate(
+          localizedReason: 'Authenticate to enable biometric lock',
+          biometricOnly: false,
+          sensitiveTransaction: false,
+          persistAcrossBackgrounding: false,
+        );
+
+        if (!didAuthenticate) {
+          return BiometricPreferenceResult.authenticationFailed;
+        }
+      } catch (e) {
+        debugPrint('Error enabling biometric lock: $e');
+        return BiometricPreferenceResult.authenticationFailed;
       }
     }
 
     _biometricEnabled = value;
     await _storage?.setBiometricEnabled(value);
+    if (value) {
+      markUnlockVerified();
+    }
     debugPrint(
       'Biometric enabled set to: $value, Lock enabled: $isLockEnabled',
     );
     notifyListeners();
-    return true;
+    return value
+        ? BiometricPreferenceResult.enabled
+        : BiometricPreferenceResult.disabled;
   }
 
   Future<void> setShowBalance(bool value) async {
@@ -226,17 +259,24 @@ class SettingsProvider with ChangeNotifier {
     _pinFailedAttempts = 0;
     await _storage?.setPinFailedAttempts(0);
     await clearPinLockout();
+    markUnlockVerified();
     notifyListeners();
   }
 
-  Future<void> refreshPinLockout() async {
+  void markUnlockVerified() {
+    _lastUnlockVerifiedAt = DateTime.now();
+  }
+
+  Future<void> refreshPinLockout({bool notify = true}) async {
     if (_storage == null) return;
     _pinLockoutUntil = _storage!.pinLockoutUntil;
     _pinFailedAttempts = _storage!.pinFailedAttempts;
     if (_pinLockoutUntil != null && !isPinLockedOut) {
       await clearPinLockout();
     }
-    notifyListeners();
+    if (notify) {
+      notifyListeners();
+    }
   }
 
   Duration _lockoutDurationForAttempts(int failedAttempts) {

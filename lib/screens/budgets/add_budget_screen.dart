@@ -74,6 +74,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Scaffold(
       appBar: AppBar(title: Text(_isEditing ? 'Edit Budget' : 'Create Budget')),
       body: Form(
@@ -130,7 +132,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
               child: Container(
                 padding: const EdgeInsets.all(AppSizes.md),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
+                  color: scheme.surface,
+                  border: Border.all(color: theme.dividerColor),
                   borderRadius: BorderRadius.circular(AppSizes.radiusMd),
                 ),
                 child: Row(
@@ -141,12 +144,14 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                       decoration: BoxDecoration(
                         color:
                             _selectedCategory?.color.withValues(alpha: 0.2) ??
-                            Colors.grey.shade200,
+                            scheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(AppSizes.radiusSm),
                       ),
                       child: Icon(
                         _selectedCategory?.icon ?? Icons.category,
-                        color: _selectedCategory?.color ?? Colors.grey,
+                        color:
+                            _selectedCategory?.color ??
+                            scheme.onSurface.withValues(alpha: 0.65),
                       ),
                     ),
                     const SizedBox(width: AppSizes.md),
@@ -159,7 +164,10 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                         ),
                       ),
                     ),
-                    Icon(Icons.chevron_right, color: Colors.grey.shade400),
+                    Icon(
+                      Icons.chevron_right,
+                      color: scheme.onSurface.withValues(alpha: 0.45),
+                    ),
                   ],
                 ),
               ),
@@ -188,11 +196,9 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                   showCheckmark: true,
                   checkmarkColor: AppColors.primary,
                   selectedColor: AppColors.primary.withValues(alpha: 0.14),
-                  backgroundColor: Colors.white,
+                  backgroundColor: scheme.surface,
                   side: BorderSide(
-                    color: isSelected
-                        ? AppColors.primary
-                        : Colors.grey.shade300,
+                    color: isSelected ? AppColors.primary : theme.dividerColor,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppSizes.radiusMd),
@@ -204,7 +210,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                   labelStyle: TextStyle(
                     color: isSelected
                         ? AppColors.primary
-                        : Colors.grey.shade700,
+                        : scheme.onSurface.withValues(alpha: 0.75),
                     fontWeight: isSelected ? FontWeight.w600 : null,
                   ),
                 );
@@ -261,7 +267,10 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
             ),
             Text(
               'Alert me when I reach $_notifyAtPercent% of my budget',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+              style: TextStyle(
+                color: scheme.onSurface.withValues(alpha: 0.7),
+                fontSize: 13,
+              ),
             ),
             const SizedBox(height: AppSizes.xl),
 
@@ -289,13 +298,16 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
     required DateTime date,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppSizes.radiusMd),
       child: Container(
         padding: const EdgeInsets.all(AppSizes.md),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
+          color: scheme.surface,
+          border: Border.all(color: theme.dividerColor),
           borderRadius: BorderRadius.circular(AppSizes.radiusMd),
         ),
         child: Column(
@@ -303,7 +315,10 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
           children: [
             Text(
               label,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+              style: TextStyle(
+                color: scheme.onSurface.withValues(alpha: 0.7),
+                fontSize: 12,
+              ),
             ),
             const SizedBox(height: 4),
             Row(

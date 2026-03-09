@@ -134,6 +134,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildSectionHeader(String title, {Color? color}) {
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSizes.sm, top: AppSizes.sm),
       child: Text(
@@ -141,7 +142,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: color ?? Colors.grey.shade600,
+          color: color ?? scheme.onSurface.withValues(alpha: 0.65),
         ),
       ),
     );
@@ -155,17 +156,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Widget? trailing,
     VoidCallback? onTap,
   }) {
+    final scheme = Theme.of(context).colorScheme;
     return Card(
       margin: const EdgeInsets.only(bottom: AppSizes.sm),
       child: ListTile(
-        leading: Icon(icon, color: titleColor),
+        leading: Icon(
+          icon,
+          color: titleColor ?? scheme.onSurface.withValues(alpha: 0.8),
+        ),
         title: Text(
           title,
           style: TextStyle(fontWeight: FontWeight.w500, color: titleColor),
         ),
         subtitle: subtitle != null ? Text(subtitle) : null,
         trailing:
-            trailing ?? Icon(Icons.chevron_right, color: Colors.grey.shade400),
+            trailing ??
+            Icon(
+              Icons.chevron_right,
+              color: scheme.onSurface.withValues(alpha: 0.45),
+            ),
         onTap: onTap,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSizes.radiusMd),
@@ -298,117 +307,129 @@ class _SettingsScreenState extends State<SettingsScreen> {
             if (hasTransactions) {
               showDialog(
                 context: context,
-                builder: (_) => Dialog(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppSizes.radiusXl),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSizes.lg),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.warning.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.currency_exchange,
-                            size: 32,
-                            color: AppColors.warning,
-                          ),
-                        ),
-                        const SizedBox(height: AppSizes.lg),
-
-                        const Text(
-                          'Change Currency?',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: AppSizes.md),
-
-                        RichText(
-                          textAlign: TextAlign.center,
-                          text: TextSpan(
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Theme.of(
-                                context,
-                              ).textTheme.bodyMedium?.color,
-                              fontFamily: 'Poppins',
-                              height: 1.5,
+                builder: (_) {
+                  final theme = Theme.of(context);
+                  final scheme = theme.colorScheme;
+                  return Dialog(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radiusXl),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSizes.lg),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.warning.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
                             ),
-                            children: [
-                              TextSpan(
-                                text:
-                                    'This will only change the symbol displayed (e.g. \$ to €).\n\n',
-                                style: TextStyle(color: Colors.grey.shade600),
+                            child: const Icon(
+                              Icons.currency_exchange,
+                              size: 32,
+                              color: AppColors.warning,
+                            ),
+                          ),
+                          const SizedBox(height: AppSizes.lg),
+
+                          const Text(
+                            'Change Currency?',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: AppSizes.md),
+
+                          RichText(
+                            textAlign: TextAlign.center,
+                            text: TextSpan(
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color,
+                                fontFamily: 'Poppins',
+                                height: 1.5,
                               ),
-                              const TextSpan(
-                                text:
-                                    'It will NOT convert your existing transaction amounts.',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                              children: [
+                                TextSpan(
+                                  text:
+                                      'This will only change the symbol displayed (e.g. \$ to €).\n\n',
+                                  style: TextStyle(
+                                    color: scheme.onSurface.withValues(
+                                      alpha: 0.7,
+                                    ),
+                                  ),
+                                ),
+                                const TextSpan(
+                                  text:
+                                      'It will NOT convert your existing transaction amounts.',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: AppSizes.xl),
+
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    side: BorderSide(color: theme.dividerColor),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        AppSizes.radiusMd,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Cancel',
+                                    style: TextStyle(
+                                      color: scheme.onSurface.withValues(
+                                        alpha: 0.8,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: AppSizes.md),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    _showCurrencyPicker(currencyProvider);
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        AppSizes.radiusMd,
+                                      ),
+                                    ),
+                                  ),
+                                  child: const Text('Proceed'),
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(height: AppSizes.xl),
-
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => Navigator.pop(context),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  side: BorderSide(color: Colors.grey.shade300),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(
-                                      AppSizes.radiusMd,
-                                    ),
-                                  ),
-                                ),
-                                child: Text(
-                                  'Cancel',
-                                  style: TextStyle(color: Colors.grey.shade700),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: AppSizes.md),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  _showCurrencyPicker(currencyProvider);
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(
-                                      AppSizes.radiusMd,
-                                    ),
-                                  ),
-                                ),
-                                child: const Text('Proceed'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               );
             } else {
               _showCurrencyPicker(currencyProvider);
@@ -647,16 +668,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
           subtitle: 'Use fingerprint or face ID',
           value: settings.biometricEnabled,
           onChanged: (value) async {
-            final success = await settings.setBiometricEnabled(value);
-            if (!success && context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Biometric authentication is not available on this device',
+            final result = await settings.setBiometricEnabled(value);
+            if (!context.mounted) return;
+
+            switch (result) {
+              case BiometricPreferenceResult.unavailable:
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Biometric authentication is not available on this device',
+                    ),
+                    backgroundColor: AppColors.error,
                   ),
-                  backgroundColor: AppColors.error,
-                ),
-              );
+                );
+                break;
+              case BiometricPreferenceResult.authenticationFailed:
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Biometric verification failed. Lock was not enabled.',
+                    ),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+                break;
+              case BiometricPreferenceResult.enabled:
+              case BiometricPreferenceResult.disabled:
+                break;
             }
           },
         );
@@ -909,9 +947,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _rateApp() {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('App store rating is not configured for this build.'),
       ),

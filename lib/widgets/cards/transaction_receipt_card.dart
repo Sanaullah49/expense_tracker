@@ -21,6 +21,8 @@ class TransactionReceiptCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final isIncome = transaction.type == TransactionType.income;
     final color = isIncome ? AppColors.income : AppColors.expense;
 
@@ -28,8 +30,9 @@ class TransactionReceiptCard extends StatelessWidget {
       width: 350,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -53,7 +56,7 @@ class TransactionReceiptCard extends StatelessWidget {
               const Text(
                 'Expense Tracker',
                 style: TextStyle(
-                  color: Colors.black87,
+                  color: AppColors.primary,
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
@@ -65,7 +68,7 @@ class TransactionReceiptCard extends StatelessWidget {
           Text(
             'Transaction Receipt',
             style: TextStyle(
-              color: Colors.grey[600],
+              color: scheme.onSurface.withValues(alpha: 0.65),
               fontSize: 12,
               letterSpacing: 1,
             ),
@@ -82,43 +85,55 @@ class TransactionReceiptCard extends StatelessWidget {
 
           const SizedBox(height: 32),
 
-          _buildRow('Title', transaction.title),
-          _buildDivider(),
+          _buildRow(context, 'Title', transaction.title),
+          _buildDivider(context),
           _buildRow(
+            context,
             'Date',
             DateFormat('MMM d, yyyy • h:mm a').format(transaction.date),
           ),
-          _buildDivider(),
-          _buildRow('Category', categoryName),
-          _buildDivider(),
-          _buildRow('Type', transaction.type.name.toUpperCase()),
+          _buildDivider(context),
+          _buildRow(context, 'Category', categoryName),
+          _buildDivider(context),
+          _buildRow(context, 'Type', transaction.type.name.toUpperCase()),
 
           if (transaction.note != null && transaction.note!.isNotEmpty) ...[
-            _buildDivider(),
-            _buildRow('Note', transaction.note!),
+            _buildDivider(context),
+            _buildRow(context, 'Note', transaction.note!),
           ],
 
           const SizedBox(height: 32),
 
           Text(
             'Generated automatically',
-            style: TextStyle(color: Colors.grey[400], fontSize: 10),
+            style: TextStyle(
+              color: scheme.onSurface.withValues(alpha: 0.45),
+              fontSize: 10,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRow(String label, String value) {
+  Widget _buildRow(BuildContext context, String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+        Text(
+          label,
+          style: TextStyle(
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.65),
+            fontSize: 14,
+          ),
+        ),
         Flexible(
           child: Text(
             value,
-            style: const TextStyle(
-              color: Colors.black87,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
               fontWeight: FontWeight.w600,
               fontSize: 14,
             ),
@@ -129,10 +144,10 @@ class TransactionReceiptCard extends StatelessWidget {
     );
   }
 
-  Widget _buildDivider() {
+  Widget _buildDivider(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Divider(color: Colors.grey.shade200),
+      child: Divider(color: Theme.of(context).dividerColor),
     );
   }
 }

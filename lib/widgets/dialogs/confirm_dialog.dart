@@ -25,6 +25,8 @@ class ConfirmDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final effectiveConfirmColor =
         confirmColor ?? (isDangerous ? AppColors.error : AppColors.primary);
 
@@ -48,14 +50,17 @@ class ConfirmDialog extends StatelessWidget {
       ),
       content: Text(
         message,
-        style: TextStyle(color: Colors.grey.shade700, height: 1.5),
+        style: TextStyle(
+          color: scheme.onSurface.withValues(alpha: 0.8),
+          height: 1.5,
+        ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
           child: Text(
             cancelText,
-            style: TextStyle(color: Colors.grey.shade600),
+            style: TextStyle(color: scheme.onSurface.withValues(alpha: 0.7)),
           ),
         ),
         ElevatedButton(

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants/icon_catalog.dart';
+
 enum AccountType { cash, bank, creditCard, savings, investment, other }
 
 class AccountModel {
@@ -51,15 +53,17 @@ class AccountModel {
   }
 
   factory AccountModel.fromMap(Map<String, dynamic> map) {
+    final typeIndex = (map['type'] as num).toInt();
+    final type = AccountType.values[typeIndex];
     return AccountModel(
       id: map['id'],
       name: map['name'],
-      type: AccountType.values[map['type']],
-      balance: map['balance'],
-      initialBalance: map['initialBalance'],
-      icon: IconData(
+      type: type,
+      balance: (map['balance'] as num).toDouble(),
+      initialBalance: (map['initialBalance'] as num).toDouble(),
+      icon: AppIconCatalog.fromCodePoint(
         map['iconCodePoint'],
-        fontFamily: map['iconFontFamily'] ?? 'MaterialIcons',
+        fallback: _defaultIconForType(type),
       ),
       color: Color(map['color']),
       currency: map['currency'],
@@ -112,6 +116,23 @@ class AccountModel {
         return 'Investment';
       case AccountType.other:
         return 'Other';
+    }
+  }
+
+  static IconData _defaultIconForType(AccountType type) {
+    switch (type) {
+      case AccountType.cash:
+        return Icons.account_balance_wallet;
+      case AccountType.bank:
+        return Icons.account_balance;
+      case AccountType.creditCard:
+        return Icons.credit_card;
+      case AccountType.savings:
+        return Icons.savings;
+      case AccountType.investment:
+        return Icons.trending_up;
+      case AccountType.other:
+        return Icons.more_horiz;
     }
   }
 }

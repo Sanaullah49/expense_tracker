@@ -35,7 +35,7 @@ class _LockScreenState extends State<LockScreen> {
 
   Future<void> _initializeLockState() async {
     final settings = context.read<SettingsProvider>();
-    await settings.refreshPinLockout();
+    await settings.refreshPinLockout(notify: false);
     _startLockoutTimerIfNeeded();
   }
 
@@ -102,6 +102,7 @@ class _LockScreenState extends State<LockScreen> {
       debugPrint('Biometric authentication result: $didAuthenticate');
 
       if (didAuthenticate && mounted) {
+        settings.markUnlockVerified();
         _onAuthSuccess();
       }
     } on PlatformException catch (e) {

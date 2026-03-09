@@ -31,14 +31,18 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: _showSearch
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Search transactions...',
+                  hintStyle: TextStyle(
+                    color: scheme.onSurface.withValues(alpha: 0.6),
+                  ),
                   border: InputBorder.none,
                 ),
                 onChanged: (value) {
@@ -96,14 +100,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                           _formatDate(date),
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade600,
+                            color: scheme.onSurface.withValues(alpha: 0.7),
                           ),
                         ),
                         Text(
                           _getDayTotal(transactions),
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade600,
+                            color: scheme.onSurface.withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -143,6 +147,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 
   Widget _buildEmptyState() {
+    final scheme = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -150,7 +155,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           Icon(
             Icons.receipt_long_outlined,
             size: 80,
-            color: Colors.grey.shade400,
+            color: scheme.onSurface.withValues(alpha: 0.45),
           ),
           const SizedBox(height: 16),
           Text(
@@ -158,13 +163,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: Colors.grey.shade600,
+              color: scheme.onSurface.withValues(alpha: 0.75),
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Try adjusting your filters',
-            style: TextStyle(color: Colors.grey.shade500),
+            style: TextStyle(color: scheme.onSurface.withValues(alpha: 0.6)),
           ),
         ],
       ),
@@ -313,7 +318,8 @@ class _FilterSheetState extends State<_FilterSheet> {
             child: Container(
               padding: const EdgeInsets.all(AppSizes.md),
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
+                color: Theme.of(context).colorScheme.surface,
+                border: Border.all(color: Theme.of(context).dividerColor),
                 borderRadius: BorderRadius.circular(AppSizes.radiusMd),
               ),
               child: Row(

@@ -31,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   int _currentIndex = 0;
   bool _isShowingLock = false;
+  bool _shouldLockOnNextResume = false;
 
   final List<Widget> _screens = [
     const _HomeTab(),
@@ -59,18 +60,35 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _lockOnResumeIfNeeded();
+    switch (state) {
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+        _shouldLockOnNextResume = true;
+        break;
+      case AppLifecycleState.resumed:
+        _lockOnResumeIfNeeded();
+        break;
+      case AppLifecycleState.detached:
+        break;
     }
   }
 
   Future<void> _lockOnResumeIfNeeded() async {
-    if (!mounted || _isShowingLock) return;
+    if (!mounted || _isShowingLock || !_shouldLockOnNextResume) return;
 
     final settings = context.read<SettingsProvider>();
-    if (!settings.isLockEnabled) return;
+    if (!settings.isLockEnabled) {
+      _shouldLockOnNextResume = false;
+      return;
+    }
+    if (settings.shouldSuppressImmediateRelock) {
+      _shouldLockOnNextResume = false;
+      return;
+    }
 
     _isShowingLock = true;
+    _shouldLockOnNextResume = false;
     await Navigator.pushNamed(context, AppRoutes.lock);
     if (mounted) {
       _isShowingLock = false;
