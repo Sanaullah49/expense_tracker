@@ -24,8 +24,12 @@ class CategoryPickerDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
         borderRadius: const BorderRadius.vertical(
@@ -101,7 +105,12 @@ class CategoryPickerDialog extends StatelessWidget {
                 }
 
                 return GridView.builder(
-                  padding: const EdgeInsets.all(AppSizes.md),
+                  padding: EdgeInsets.fromLTRB(
+                    AppSizes.md,
+                    AppSizes.md,
+                    AppSizes.md,
+                    AppSizes.md + bottomInset,
+                  ),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     mainAxisSpacing: 12,
@@ -132,10 +141,14 @@ class CategoryPickerDialog extends StatelessWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).padding.bottom,
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -169,7 +182,8 @@ class CategoryPickerDialog extends StatelessWidget {
             },
             child: const Text('Create First Category'),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }

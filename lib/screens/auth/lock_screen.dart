@@ -216,120 +216,183 @@ class _LockScreenState extends State<LockScreen> {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.primaryGradient),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSizes.lg),
-            child: Column(
-              children: [
-                const Spacer(),
-
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: _isAuthenticating
-                      ? const Padding(
-                          padding: EdgeInsets.all(20),
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 3,
-                          ),
-                        )
-                      : const Icon(
-                          Icons.lock_outline,
-                          size: 40,
-                          color: Colors.white,
-                        ),
-                ),
-                const SizedBox(height: 24),
-
-                Text(
-                  settings.hasPin ? 'Enter PIN' : 'Authenticate',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                Text(
-                  settings.hasPin
-                      ? 'Enter your 4-digit PIN to unlock'
-                      : 'Use biometrics to unlock',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
-                ),
-                const SizedBox(height: 32),
-
-                if (settings.hasPin) ...[
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(4, (index) {
-                      final isFilled = index < _enteredPin.length;
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        margin: const EdgeInsets.symmetric(horizontal: 8),
-                        width: 20,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isFilled
-                              ? Colors.white
-                              : Colors.white.withValues(alpha: 0.3),
-                          border: Border.all(
-                            color: _showError ? Colors.red : Colors.white,
-                            width: 2,
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-
-                  if (_showError || isLockedOut) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      isLockedOut
-                          ? 'Too many failed attempts. Try again in ${settings.pinLockoutSecondsRemaining}s.'
-                          : 'Incorrect PIN. ${settings.pinAttemptsRemaining} attempts remaining.',
-                      style: const TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ],
-
-                const Spacer(),
-
-                if (settings.hasPin) _buildKeypad(showBiometricButton),
-
-                if (!settings.hasPin && settings.biometricEnabled) ...[
-                  ElevatedButton.icon(
-                    onPressed: _isAuthenticating
-                        ? null
-                        : _authenticateWithBiometric,
-                    icon: const Icon(Icons.fingerprint, size: 28),
-                    label: const Text('Authenticate with Biometrics'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: AppColors.primary,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 16,
-                      ),
-                    ),
-                  ),
-                ],
-
-                const SizedBox(height: 32),
-              ],
+        child: Stack(
+          children: [
+            Positioned(
+              top: -100,
+              right: -80,
+              child: _buildBlob(260, Colors.white.withValues(alpha: 0.07)),
             ),
-          ),
+            Positioned(
+              bottom: -120,
+              left: -60,
+              child: _buildBlob(220, Colors.white.withValues(alpha: 0.06)),
+            ),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSizes.lg),
+                child: Column(
+                  children: [
+                    const Spacer(flex: 2),
+
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      width: 88,
+                      height: 88,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: _isAuthenticating
+                          ? const Padding(
+                              padding: EdgeInsets.all(24),
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : Icon(
+                              settings.hasPin
+                                  ? Icons.lock_rounded
+                                  : Icons.fingerprint_rounded,
+                              size: 40,
+                              color: Colors.white,
+                            ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    Text(
+                      settings.hasPin ? 'Enter PIN' : 'Authenticate',
+                      style: const TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+
+                    Text(
+                      settings.hasPin
+                          ? 'Enter your 4-digit PIN to unlock'
+                          : 'Use biometrics to unlock',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 36),
+
+                    if (settings.hasPin) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(4, (index) {
+                          final isFilled = index < _enteredPin.length;
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            curve: Curves.easeOutBack,
+                            margin: const EdgeInsets.symmetric(horizontal: 10),
+                            width: isFilled ? 16 : 14,
+                            height: isFilled ? 16 : 14,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isFilled
+                                  ? (_showError
+                                        ? Colors.red.shade300
+                                        : Colors.white)
+                                  : Colors.transparent,
+                              border: Border.all(
+                                color: _showError
+                                    ? Colors.red.shade300
+                                    : Colors.white.withValues(alpha: 0.7),
+                                width: 1.5,
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+
+                      if (_showError || isLockedOut) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.red.shade300.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Text(
+                            isLockedOut
+                                ? 'Locked. Try again in ${settings.pinLockoutSecondsRemaining}s'
+                                : 'Incorrect PIN · ${settings.pinAttemptsRemaining} attempts left',
+                            style: TextStyle(
+                              color: Colors.red.shade100,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+
+                    const Spacer(flex: 3),
+
+                    if (settings.hasPin) _buildKeypad(showBiometricButton),
+
+                    if (!settings.hasPin && settings.biometricEnabled) ...[
+                      ElevatedButton.icon(
+                        onPressed: _isAuthenticating
+                            ? null
+                            : _authenticateWithBiometric,
+                        icon: const Icon(Icons.fingerprint_rounded, size: 24),
+                        label: const Text('Authenticate'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 36,
+                            vertical: 18,
+                          ),
+                          minimumSize: Size.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          textStyle: const TextStyle(
+                            fontFamily: 'Poppins',
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildBlob(double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 
@@ -340,17 +403,17 @@ class _LockScreenState extends State<LockScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: ['1', '2', '3'].map(_buildKeyButton).toList(),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: ['4', '5', '6'].map(_buildKeyButton).toList(),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: ['7', '8', '9'].map(_buildKeyButton).toList(),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
@@ -365,37 +428,48 @@ class _LockScreenState extends State<LockScreen> {
 
   Widget _buildKeyButton(String value) {
     if (value.isEmpty) {
-      return const SizedBox(width: 80, height: 80);
+      return const SizedBox(width: 72, height: 72);
     }
 
     IconData? icon;
     if (value == 'delete') {
-      icon = Icons.backspace_outlined;
+      icon = Icons.backspace_rounded;
     } else if (value == 'biometric') {
-      icon = Icons.fingerprint;
+      icon = Icons.fingerprint_rounded;
     }
 
-    return InkWell(
-      onTap: () => _onPinButtonPressed(value),
-      borderRadius: BorderRadius.circular(40),
-      child: Container(
-        width: 80,
-        height: 80,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white.withValues(alpha: 0.1),
-        ),
-        child: Center(
-          child: icon != null
-              ? Icon(icon, color: Colors.white, size: 28)
-              : Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+    final isAction = icon != null;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _onPinButtonPressed(value),
+        borderRadius: BorderRadius.circular(36),
+        child: Ink(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isAction
+                ? Colors.white.withValues(alpha: 0.06)
+                : Colors.white.withValues(alpha: 0.14),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.15),
+              width: 1,
+            ),
+          ),
+          child: Center(
+            child: icon != null
+                ? Icon(icon, color: Colors.white, size: 22)
+                : Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
+          ),
         ),
       ),
     );

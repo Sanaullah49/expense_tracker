@@ -192,96 +192,144 @@ class _SplashScreenState extends State<SplashScreen>
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.primaryGradient),
-        child: SafeArea(
-          child: Center(
-            child: AnimatedBuilder(
-              animation: _controller,
-              builder: (context, child) {
-                return FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Transform.scale(
-                        scale: _scaleAnimation.value,
-                        child: Container(
-                          width: 120,
-                          height: 120,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(30),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.2),
-                                blurRadius: 30,
-                                offset: const Offset(0, 15),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.account_balance_wallet,
-                            size: 60,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-
-                      Transform.translate(
-                        offset: Offset(0, _slideAnimation.value),
-                        child: const Text(
-                          AppStrings.appName,
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      Transform.translate(
-                        offset: Offset(0, _slideAnimation.value),
-                        child: Text(
-                          AppStrings.appTagline,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.white.withValues(alpha: 0.8),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 48),
-
-                      if (_hasError)
-                        _buildErrorWidget()
-                      else
-                        _buildLoadingWidget(),
-                    ],
-                  ),
-                );
-              },
+        child: Stack(
+          children: [
+            Positioned(
+              top: -80,
+              right: -60,
+              child: _buildBlob(220, Colors.white.withValues(alpha: 0.08)),
             ),
-          ),
+            Positioned(
+              bottom: -100,
+              left: -80,
+              child: _buildBlob(280, Colors.white.withValues(alpha: 0.06)),
+            ),
+            Positioned(
+              top: 120,
+              left: 30,
+              child: _buildBlob(20, Colors.white.withValues(alpha: 0.4)),
+            ),
+            Positioned(
+              top: 200,
+              right: 50,
+              child: _buildBlob(8, Colors.white.withValues(alpha: 0.6)),
+            ),
+            Positioned(
+              bottom: 200,
+              right: 80,
+              child: _buildBlob(14, Colors.white.withValues(alpha: 0.3)),
+            ),
+            SafeArea(
+              child: Center(
+                child: AnimatedBuilder(
+                  animation: _controller,
+                  builder: (context, child) {
+                    return FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Transform.scale(
+                            scale: _scaleAnimation.value,
+                            child: Container(
+                              width: 110,
+                              height: 110,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(28),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.18),
+                                    blurRadius: 32,
+                                    offset: const Offset(0, 16),
+                                    spreadRadius: -4,
+                                  ),
+                                ],
+                              ),
+                              child: ShaderMask(
+                                shaderCallback: (bounds) =>
+                                    AppColors.primaryGradient.createShader(
+                                      bounds,
+                                    ),
+                                child: const Icon(
+                                  Icons.account_balance_wallet_rounded,
+                                  size: 56,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+
+                          Transform.translate(
+                            offset: Offset(0, _slideAnimation.value),
+                            child: const Text(
+                              AppStrings.appName,
+                              style: TextStyle(
+                                fontSize: 30,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+
+                          Transform.translate(
+                            offset: Offset(0, _slideAnimation.value),
+                            child: Text(
+                              AppStrings.appTagline,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white.withValues(alpha: 0.85),
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 60),
+
+                          if (_hasError)
+                            _buildErrorWidget()
+                          else
+                            _buildLoadingWidget(),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildBlob(double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 
   Widget _buildLoadingWidget() {
     return Column(
       children: [
-        const SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-        ),
+        const _LoadingDots(),
         const SizedBox(height: 16),
-        Text(
-          _loadingMessage,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.8),
-            fontSize: 14,
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 250),
+          child: Text(
+            _loadingMessage,
+            key: ValueKey(_loadingMessage),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.85),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.2,
+            ),
           ),
         ),
       ],
@@ -291,14 +339,26 @@ class _SplashScreenState extends State<SplashScreen>
   Widget _buildErrorWidget() {
     return Column(
       children: [
-        const Icon(Icons.error_outline, color: Colors.white, size: 48),
+        Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.18),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.error_outline_rounded,
+            color: Colors.white,
+            size: 32,
+          ),
+        ),
         const SizedBox(height: 16),
         Text(
           'Something went wrong',
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.9),
+            color: Colors.white.withValues(alpha: 0.95),
             fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 8),
@@ -307,7 +367,7 @@ class _SplashScreenState extends State<SplashScreen>
           child: Text(
             _errorMessage ?? 'Unknown error',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
+              color: Colors.white.withValues(alpha: 0.75),
               fontSize: 12,
             ),
             textAlign: TextAlign.center,
@@ -316,7 +376,7 @@ class _SplashScreenState extends State<SplashScreen>
           ),
         ),
         const SizedBox(height: 24),
-        TextButton(
+        TextButton.icon(
           onPressed: () {
             setState(() {
               _hasError = false;
@@ -324,14 +384,84 @@ class _SplashScreenState extends State<SplashScreen>
             });
             _initializeApp();
           },
+          icon: const Icon(Icons.refresh_rounded, size: 18),
+          label: const Text('Retry'),
           style: TextButton.styleFrom(
             backgroundColor: Colors.white,
             foregroundColor: AppColors.primary,
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            textStyle: const TextStyle(
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w600,
+            ),
           ),
-          child: const Text('Retry'),
         ),
       ],
+    );
+  }
+}
+
+class _LoadingDots extends StatefulWidget {
+  const _LoadingDots();
+
+  @override
+  State<_LoadingDots> createState() => _LoadingDotsState();
+}
+
+class _LoadingDotsState extends State<_LoadingDots>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 60,
+      height: 16,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(3, (i) {
+              final progress = (_controller.value - i * 0.15) % 1.0;
+              final scale = 0.6 + 0.4 * (1 - (progress - 0.3).abs() * 3.3).clamp(0.0, 1.0);
+              final opacity = 0.4 + 0.6 * (1 - (progress - 0.3).abs() * 3.3).clamp(0.0, 1.0);
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Transform.scale(
+                  scale: scale,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: opacity),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              );
+            }),
+          );
+        },
+      ),
     );
   }
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_sizes.dart';
 import '../../data/models/transaction_model.dart';
 import '../../providers/currency_provider.dart';
@@ -26,50 +25,75 @@ class BalanceCard extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(AppSizes.lg),
           decoration: BoxDecoration(
-            gradient: AppColors.primaryGradient,
+            gradient: const LinearGradient(
+              colors: [Color(0xFF2A1F8F), Color(0xFF1A0F6B)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             borderRadius: BorderRadius.circular(AppSizes.radiusXl),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.4),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+                color: const Color(0xFF1A0F6B).withValues(alpha: 0.35),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+                spreadRadius: -4,
               ),
             ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Total Balance',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-              const SizedBox(height: 8),
               Text(
-                currencyProvider.formatAmount(balance),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
+                'Total Balance',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.65),
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.4,
+                ),
+              ),
+              const SizedBox(height: 10),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  currencyProvider.formatAmount(balance),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 38,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.8,
+                    height: 1.1,
+                  ),
                 ),
               ),
               const SizedBox(height: AppSizes.lg),
+              Container(
+                height: 1,
+                color: Colors.white.withValues(alpha: 0.12),
+              ),
+              const SizedBox(height: AppSizes.md),
               Row(
                 children: [
                   Expanded(
-                    child: _buildIncomeExpenseItem(
-                      icon: Icons.arrow_downward,
+                    child: _buildStat(
+                      icon: Icons.arrow_downward_rounded,
                       label: 'Income',
                       amount: currencyProvider.formatAmount(income),
-                      iconColor: AppColors.income,
+                      tint: const Color(0xFF55EFC4),
                     ),
                   ),
-                  Container(height: 40, width: 1, color: Colors.white24),
+                  Container(
+                    height: 32,
+                    width: 1,
+                    color: Colors.white.withValues(alpha: 0.12),
+                  ),
                   Expanded(
-                    child: _buildIncomeExpenseItem(
-                      icon: Icons.arrow_upward,
+                    child: _buildStat(
+                      icon: Icons.arrow_upward_rounded,
                       label: 'Expense',
                       amount: currencyProvider.formatAmount(expense),
-                      iconColor: AppColors.expense,
+                      tint: const Color(0xFFFF7675),
                     ),
                   ),
                 ],
@@ -81,40 +105,44 @@ class BalanceCard extends StatelessWidget {
     );
   }
 
-  Widget _buildIncomeExpenseItem({
+  Widget _buildStat({
     required IconData icon,
     required String label,
     required String amount,
-    required Color iconColor,
+    required Color tint,
   }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: Colors.white, size: 16),
-        ),
-        const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        Row(
           children: [
+            Icon(icon, color: tint, size: 14),
+            const SizedBox(width: 6),
             Text(
               label,
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-            Text(
-              amount,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.2,
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 6),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            amount,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.2,
+            ),
+          ),
         ),
       ],
     );

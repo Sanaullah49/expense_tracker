@@ -36,6 +36,8 @@ class TransactionItem extends StatelessWidget {
     final categoryProvider = context.watch<CategoryProvider>();
     final currencyProvider = context.watch<CurrencyProvider>();
     final category = categoryProvider.getCategoryById(transaction.categoryId);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
 
     final isIncome = transaction.type == TransactionType.income;
     final isTransfer = transaction.type == TransactionType.transfer;
@@ -54,77 +56,129 @@ class TransactionItem extends StatelessWidget {
       prefix = '-';
     }
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSizes.md),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: (category?.color ?? Colors.grey).withValues(
-                    alpha: Theme.of(context).brightness == Brightness.dark
-                        ? 0.2
-                        : 0.1,
-                  ),
-                  borderRadius: BorderRadius.circular(AppSizes.radiusSm),
-                ),
-                child: Icon(
-                  isTransfer
-                      ? Icons.swap_horiz
-                      : category?.icon ?? Icons.category,
-                  color: category?.color ?? Colors.grey,
-                ),
-              ),
-              const SizedBox(width: AppSizes.md),
+    final categoryColor = category?.color ?? Colors.grey;
 
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return Material(
+      color: Colors.transparent,
+      child: Ink(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+          border: Border.all(
+            color: isDark
+                ? AppColors.borderDark.withValues(alpha: 0.6)
+                : AppColors.borderLight.withValues(alpha: 0.7),
+            width: 1,
+          ),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+          splashColor: categoryColor.withValues(alpha: 0.08),
+          highlightColor: categoryColor.withValues(alpha: 0.04),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSizes.md,
+              vertical: 14,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        categoryColor.withValues(alpha: isDark ? 0.25 : 0.16),
+                        categoryColor.withValues(alpha: isDark ? 0.15 : 0.08),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    isTransfer
+                        ? Icons.swap_horiz_rounded
+                        : category?.icon ?? Icons.category_rounded,
+                    color: categoryColor,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: AppSizes.md),
+
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        transaction.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: categoryColor,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              isTransfer
+                                  ? 'Transfer'
+                                  : category?.name ?? 'Unknown',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: 8),
+
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      transaction.title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                      '$prefix${currencyProvider.formatAmount(transaction.amount)}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        color: amountColor,
+                        letterSpacing: -0.2,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      isTransfer ? 'Transfer' : category?.name ?? 'Unknown',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 13,
+                      _formatDate(transaction.date),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ],
                 ),
-              ),
-
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '$prefix${currencyProvider.formatAmount(transaction.amount)}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: amountColor,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-
-                  Text(
-                    _formatDate(transaction.date),
-                    style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
